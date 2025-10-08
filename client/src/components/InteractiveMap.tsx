@@ -79,9 +79,10 @@ export function InteractiveMap({
 
     // Style function for county polygons - semi-transparent overlay
     const style = (feature: any) => {
-      const countyName = feature.properties.CNTY_NM || feature.properties.NAME || "";
-      const isSelected = selectedCounty && countyName.toUpperCase() === selectedCounty.toUpperCase();
-      const hasLocations = locationsByCounty.has(countyName.toUpperCase());
+      const rawCountyName = feature.properties.CNTY_NM || feature.properties.NAME || "";
+      const countyNameUpper = rawCountyName.toUpperCase();
+      const isSelected = selectedCounty && countyNameUpper === selectedCounty.toUpperCase();
+      const hasLocations = locationsByCounty.has(countyNameUpper);
       
       return {
         fillColor: isSelected ? "#3b82f6" : (hasLocations ? "#10b981" : "#d1d5db"),
@@ -94,59 +95,59 @@ export function InteractiveMap({
 
     // Hover and click handlers for county polygons
     const onEachFeature = (feature: any, layer: L.Layer) => {
-      const countyName = feature.properties.CNTY_NM || feature.properties.NAME || "";
-      const countyLocations = locationsByCounty.get(countyName.toUpperCase()) || [];
+      const rawCountyName = feature.properties.CNTY_NM || feature.properties.NAME || "";
+      const countyNameUpper = rawCountyName.toUpperCase();
+      const countyLocations = locationsByCounty.get(countyNameUpper) || [];
 
-      if (countyLocations.length > 0) {
-        layer.on({
-          mouseover: (e: L.LeafletMouseEvent) => {
-            const layer = e.target;
-            layer.setStyle({
-              weight: 3,
-              color: "#1f2937",
-              fillOpacity: 0.2,
-            });
-            layer.bringToFront();
+      // Calculate total sales for county
+      const totalSales = countyLocations.reduce((sum, loc) => sum + loc.totalSales, 0);
 
-            // Calculate total sales for county
-            const totalSales = countyLocations.reduce((sum, loc) => sum + loc.totalSales, 0);
+      layer.on({
+        mouseover: (e: L.LeafletMouseEvent) => {
+          const layer = e.target;
+          layer.setStyle({
+            weight: 3,
+            color: "#1f2937",
+            fillOpacity: 0.2,
+          });
+          layer.bringToFront();
 
-            // Show tooltip
-            const tooltip = L.tooltip({
-              permanent: false,
-              direction: "top",
-              className: "county-tooltip",
-            })
-              .setLatLng(e.latlng)
-              .setContent(
-                `<div style="font-family: Inter, sans-serif; padding: 4px;">
-                  <strong style="font-size: 14px;">${countyName}</strong><br/>
-                  <span style="font-size: 12px; color: #6b7280;">
-                    ${countyLocations.length} locations<br/>
-                    Total Sales: <strong>$${totalSales.toLocaleString()}</strong>
-                  </span><br/>
-                  <span style="font-size: 11px; color: #9ca3af;">Click to filter</span>
-                </div>`
-              )
-              .addTo(mapRef.current!);
+          // Show tooltip
+          const tooltip = L.tooltip({
+            permanent: false,
+            direction: "top",
+            className: "county-tooltip",
+          })
+            .setLatLng(e.latlng)
+            .setContent(
+              `<div style="font-family: Inter, sans-serif; padding: 4px;">
+                <strong style="font-size: 14px;">${rawCountyName}</strong><br/>
+                <span style="font-size: 12px; color: #6b7280;">
+                  ${countyLocations.length} location${countyLocations.length !== 1 ? 's' : ''}<br/>
+                  Total Sales: <strong>$${totalSales.toLocaleString()}</strong>
+                </span><br/>
+                <span style="font-size: 11px; color: #9ca3af;">Click to filter</span>
+              </div>`
+            )
+            .addTo(mapRef.current!);
 
-            layer._tooltip = tooltip;
-          },
-          mouseout: (e: L.LeafletMouseEvent) => {
-            const layer = e.target;
-            countyLayerRef.current?.resetStyle(layer);
-            if (layer._tooltip) {
-              mapRef.current?.removeLayer(layer._tooltip);
-              layer._tooltip = null;
-            }
-          },
-          click: () => {
-            if (onCountyClick) {
-              onCountyClick(countyName);
-            }
-          },
-        });
-      }
+          layer._tooltip = tooltip;
+        },
+        mouseout: (e: L.LeafletMouseEvent) => {
+          const layer = e.target;
+          countyLayerRef.current?.resetStyle(layer);
+          if (layer._tooltip) {
+            mapRef.current?.removeLayer(layer._tooltip);
+            layer._tooltip = null;
+          }
+        },
+        click: () => {
+          if (onCountyClick) {
+            // Pass uppercase county name for consistent filtering
+            onCountyClick(countyNameUpper);
+          }
+        },
+      });
     };
 
     // Add county layer (semi-transparent overlay)
