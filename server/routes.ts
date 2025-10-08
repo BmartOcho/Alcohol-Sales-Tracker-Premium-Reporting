@@ -8,6 +8,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 1000;
       
       // Create cache key based on date range
       const cacheKey = startDate && endDate ? `${startDate}_${endDate}` : 'default';
@@ -19,10 +21,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         locations = await fetchAllTexasAlcoholData(Infinity, startDate, endDate);
         storage.setCachedLocations(locations, cacheKey);
       } else {
-        console.log(`Cache hit for ${cacheKey} - returning ${locations.length} locations from cache`);
+        console.log(`Cache hit for ${cacheKey} - ${locations.length} locations in cache`);
       }
 
-      res.json(locations);
+      // Paginate the results
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedLocations = locations.slice(startIndex, endIndex);
+
+      console.log(`Returning page ${page} (${paginatedLocations.length} locations, ${startIndex}-${endIndex} of ${locations.length})`);
+
+      res.json({
+        locations: paginatedLocations,
+        pagination: {
+          page,
+          limit,
+          total: locations.length,
+          totalPages: Math.ceil(locations.length / limit),
+          hasMore: endIndex < locations.length
+        }
+      });
     } catch (error) {
       console.error("Error fetching locations - Full error:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
