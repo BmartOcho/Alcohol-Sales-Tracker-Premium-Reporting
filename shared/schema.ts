@@ -79,3 +79,15 @@ export const texasDataRecordSchema = z.object({
 });
 
 export type TexasDataRecord = z.infer<typeof texasDataRecordSchema>;
+
+export const countySalesSchema = z.object({
+  countyName: z.string(),
+  totalSales: z.number(),
+  liquorSales: z.number(),
+  wineSales: z.number(),
+  beerSales: z.number(),
+  locationCount: z.number(),
+  locations: z.array(locationSummarySchema),
+});
+
+export type CountySales = z.infer<typeof countySalesSchema>;

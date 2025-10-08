@@ -52,6 +52,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/counties", async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+      const cacheKey = startDate && endDate ? `${startDate}_${endDate}` : 'default';
+      
+      let locations = storage.getCachedLocations(cacheKey);
+      
+      if (!locations) {
+        console.log(`Cache miss for ${cacheKey} - fetching fresh data from Texas API...`);
+        locations = await fetchAllTexasAlcoholData(Infinity, startDate, endDate);
+        storage.setCachedLocations(locations, cacheKey);
+      }
+
+      // Aggregate by county
+      const countyMap = new Map<string, any>();
+      
+      locations.forEach(location => {
+        const county = location.locationCounty;
+        if (!countyMap.has(county)) {
+          countyMap.set(county, {
+            countyName: county,
+            totalSales: 0,
+            liquorSales: 0,
+            wineSales: 0,
+            beerSales: 0,
+            locationCount: 0,
+            locations: [],
+          });
+        }
+        
+        const countyData = countyMap.get(county);
+        countyData.totalSales += location.totalSales;
+        countyData.liquorSales += location.liquorSales;
+        countyData.wineSales += location.wineSales;
+        countyData.beerSales += location.beerSales;
+        countyData.locationCount += 1;
+        countyData.locations.push(location);
+      });
+
+      const counties = Array.from(countyMap.values());
+      res.json(counties);
+    } catch (error) {
+      console.error("Error fetching county data:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch county data",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   app.get("/api/locations/:permitNumber", async (req, res) => {
     try {
       const startDate = req.query.startDate as string;
