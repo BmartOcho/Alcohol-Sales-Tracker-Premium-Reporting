@@ -154,13 +154,13 @@ export default function Home() {
 
   const selectedLocationData = useMemo(() => {
     if (!selectedLocation || !locations) return null;
-    return locations.find(loc => loc.permitNumber === selectedLocation);
+    return locations.find(loc => loc.permitNumber === selectedLocation) || null;
   }, [selectedLocation, locations]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
       {/* Sidebar */}
-      <div className="w-96 border-r bg-card flex flex-col">
+      <div className="w-96 border-r bg-card flex flex-col h-full">
         <div className="p-4 border-b space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -292,8 +292,8 @@ export default function Home() {
       />
 
       {/* Map Section */}
-      <div className="flex-1 flex flex-col">
-        <div className="p-4 border-b">
+      <div className="flex-1 flex flex-col h-full overflow-y-auto">
+        <div className="p-4 border-b flex-shrink-0">
           {isLoading ? (
             <Card>
               <CardHeader>
@@ -307,7 +307,7 @@ export default function Home() {
             <SalesChart data={chartData} />
           )}
         </div>
-        <div className="flex-1 relative">
+        <div className="flex-1 min-h-[600px] relative">
           {isLoading ? (
             <div className="w-full h-full bg-muted flex items-center justify-center">
               <div className="text-center">
