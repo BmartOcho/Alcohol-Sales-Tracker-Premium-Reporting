@@ -5,6 +5,7 @@ import type { LocationSummary } from "@shared/schema";
 
 type InteractiveMapProps = {
   locations: LocationSummary[];
+  allLocations?: LocationSummary[];
   onLocationClick?: (location: LocationSummary) => void;
   onCountyClick?: (countyName: string) => void;
   selectedCounty?: string | null;
@@ -14,6 +15,7 @@ type InteractiveMapProps = {
 
 export function InteractiveMap({
   locations,
+  allLocations,
   onLocationClick,
   onCountyClick,
   selectedCounty,
@@ -60,16 +62,19 @@ export function InteractiveMap({
 
   // Render county overlay polygons
   useEffect(() => {
-    if (!mapRef.current || !geoJsonData || !locations) return;
+    if (!mapRef.current || !geoJsonData) return;
 
     // Remove existing county layer
     if (countyLayerRef.current) {
       countyLayerRef.current.remove();
     }
 
+    // Use allLocations for county aggregation (if provided), otherwise use locations
+    const locationsForAggregation = allLocations || locations;
+
     // Create location lookup by county
     const locationsByCounty = new Map<string, LocationSummary[]>();
-    locations.forEach((location) => {
+    locationsForAggregation.forEach((location) => {
       const county = location.locationCounty.toUpperCase();
       if (!locationsByCounty.has(county)) {
         locationsByCounty.set(county, []);
@@ -155,7 +160,7 @@ export function InteractiveMap({
       style,
       onEachFeature,
     }).addTo(mapRef.current);
-  }, [geoJsonData, locations, onCountyClick, selectedCounty]);
+  }, [geoJsonData, locations, allLocations, onCountyClick, selectedCounty]);
 
   // Render location markers
   useEffect(() => {

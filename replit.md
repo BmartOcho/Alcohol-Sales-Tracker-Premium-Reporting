@@ -17,9 +17,13 @@ An interactive web application for visualizing Texas alcohol sales data by categ
   - **Overlay Layer**: Semi-transparent county polygons (254 Texas counties, 29MB GeoJSON from TxDOT)
     - Green fill: counties with locations, Gray fill: no locations, Blue fill: selected county
     - Low opacity (0.05-0.3) to not obscure underlying markers
-    - Hover → tooltip shows county name, location count, total sales
+    - Hover → tooltip shows county name, location count, total sales (always shows full data)
     - Click → filters sidebar to show only locations in that county
   - **Case-Normalized Filtering**: All county comparisons use uppercase for consistent matching
+  - **Dual-Data Architecture**: InteractiveMap receives both filtered and unfiltered location data
+    - `locations` prop: filtered locations for marker rendering (respects sidebar filters)
+    - `allLocations` prop: unfiltered locations for county tooltip aggregation
+    - Ensures county tooltips always show accurate sales data regardless of current filters
 - **Interactive Filtering**:
   - Year selector (2015-2025, All Years) for historical data
   - Search box filters by location name, city, county, or address
@@ -32,6 +36,7 @@ An interactive web application for visualizing Texas alcohol sales data by categ
   - County selection highlights county in blue and filters sidebar
   - "Filtered: {County} County" badge with X button to clear
   - Empty state when county has no locations
+  - County tooltips remain accurate even when sidebar is filtered
 
 ### October 8, 2025 (Earlier - Unlimited Data Access)
 - **Unlimited Dataset Access**: Removed 50k record cap when year filter is applied - now fetches ALL available TABC records for selected year

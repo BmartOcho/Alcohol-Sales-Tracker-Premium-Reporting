@@ -325,6 +325,7 @@ export default function Home() {
           ) : (
             <InteractiveMap
               locations={filteredLocations}
+              allLocations={locations}
               onLocationClick={(location) => {
                 setSelectedLocation(location);
               }}
