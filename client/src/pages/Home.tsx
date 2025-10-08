@@ -6,6 +6,7 @@ import { CategoryFilter } from "@/components/CategoryFilter";
 import { SearchBar } from "@/components/SearchBar";
 import { SalesChart } from "@/components/SalesChart";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LocationDetailModal } from "@/components/LocationDetailModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -257,6 +258,13 @@ export default function Home() {
           </div>
         </ScrollArea>
       </div>
+
+      {/* Location Detail Modal */}
+      <LocationDetailModal
+        location={selectedLocationData}
+        open={!!selectedLocationData}
+        onClose={() => setSelectedLocation(null)}
+      />
 
       {/* Map Section */}
       <div className="flex-1 flex flex-col">
