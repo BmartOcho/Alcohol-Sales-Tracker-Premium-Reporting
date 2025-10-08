@@ -1,41 +1,24 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { InteractiveMap } from "@/components/InteractiveMap";
-import { CountyLocationsDialog } from "@/components/CountyLocationsDialog";
+import { LocationDetailModal } from "@/components/LocationDetailModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Star, AlertCircle, Calendar } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Star, AlertCircle, Calendar, Search, MapPin, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { CountySales } from "@shared/schema";
-
-function formatMonthYear(dateStr: string): string {
-  if (!dateStr) return "Unknown";
-  
-  let year: string;
-  let month: string;
-  
-  if (dateStr.includes('-') || dateStr.includes('T')) {
-    const date = new Date(dateStr);
-    year = date.getFullYear().toString();
-    month = (date.getMonth() + 1).toString().padStart(2, '0');
-  } else {
-    year = dateStr.substring(0, 4);
-    month = dateStr.substring(4, 6);
-  }
-  
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const monthIndex = parseInt(month) - 1;
-  
-  if (monthIndex < 0 || monthIndex > 11) return "Unknown";
-  
-  return `${monthNames[monthIndex]} ${year}`;
-}
+import type { LocationSummary } from "@shared/schema";
 
 export default function Home() {
   const [selectedYear, setSelectedYear] = useState<string>("2024");
-  const [selectedCounty, setSelectedCounty] = useState<CountySales | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<LocationSummary | null>(null);
+  const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 100;
 
   const dateRange = useMemo(() => {
     if (selectedYear === "all") {
@@ -48,37 +31,68 @@ export default function Home() {
     };
   }, [selectedYear]);
 
-  const { data: counties, isLoading, error } = useQuery<CountySales[]>({
-    queryKey: ["/api/counties", dateRange.startDate, dateRange.endDate],
+  const { data: locations, isLoading, error } = useQuery<LocationSummary[]>({
+    queryKey: ["/api/locations", dateRange.startDate, dateRange.endDate],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (dateRange.startDate && dateRange.endDate) {
         params.append('startDate', dateRange.startDate);
         params.append('endDate', dateRange.endDate);
       }
-      const url = `/api/counties${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = `/api/locations${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch county data');
+      if (!response.ok) throw new Error('Failed to fetch locations');
       return response.json();
     },
   });
 
+  // Filter locations based on search and county selection
+  const filteredLocations = useMemo(() => {
+    if (!locations) return [];
+    
+    let filtered = locations;
+
+    // Filter by selected county
+    if (selectedCounty) {
+      filtered = filtered.filter(
+        (loc) => loc.locationCounty.toUpperCase() === selectedCounty.toUpperCase()
+      );
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (loc) =>
+          loc.locationName.toLowerCase().includes(query) ||
+          loc.locationCity.toLowerCase().includes(query) ||
+          loc.locationCounty.toLowerCase().includes(query) ||
+          loc.locationAddress.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [locations, searchQuery, selectedCounty]);
+
+  // Paginate filtered locations
+  const paginatedLocations = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return filteredLocations.slice(start, end);
+  }, [filteredLocations, currentPage]);
+
+  const totalPages = Math.ceil(filteredLocations.length / ITEMS_PER_PAGE);
+
   const totalSales = useMemo(() => {
-    if (!counties) return 0;
-    return counties.reduce((sum, county) => sum + county.totalSales, 0);
-  }, [counties]);
+    if (!filteredLocations) return 0;
+    return filteredLocations.reduce((sum, loc) => sum + loc.totalSales, 0);
+  }, [filteredLocations]);
 
-  const totalLocations = useMemo(() => {
-    if (!counties) return 0;
-    return counties.reduce((sum, county) => sum + county.locationCount, 0);
-  }, [counties]);
-
-  const topCounties = useMemo(() => {
-    if (!counties) return [];
-    return [...counties]
-      .sort((a, b) => b.totalSales - a.totalSales)
-      .slice(0, 10);
-  }, [counties]);
+  const clearFilters = () => {
+    setSelectedCounty(null);
+    setSearchQuery("");
+    setCurrentPage(1);
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -116,6 +130,38 @@ export default function Home() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search locations, cities, counties..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-9"
+                data-testid="input-search"
+              />
+            </div>
+
+            {selectedCounty && (
+              <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-md">
+                <MapPin className="h-4 w-4" />
+                <span className="text-sm font-medium flex-1">
+                  Filtered: {selectedCounty} County
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={clearFilters}
+                  data-testid="button-clear-county-filter"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -123,7 +169,7 @@ export default function Home() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Sales {selectedYear !== "all" ? `(${selectedYear})` : "(All Time)"}
+                {selectedCounty ? `${selectedCounty} County` : "Total Sales"} {selectedYear !== "all" ? `(${selectedYear})` : "(All Time)"}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -134,8 +180,9 @@ export default function Home() {
                   <p className="text-3xl font-mono font-bold" data-testid="text-total-sales">
                     ${totalSales.toLocaleString()}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {totalLocations.toLocaleString()} locations across {counties?.length || 0} counties
+                  <p className="text-sm text-muted-foreground mt-1" data-testid="text-location-count">
+                    {filteredLocations.length.toLocaleString()} location{filteredLocations.length !== 1 ? 's' : ''}
+                    {searchQuery && " (filtered)"}
                   </p>
                 </>
               )}
@@ -149,7 +196,7 @@ export default function Home() {
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Failed to load county data. Please try again later.
+                  Failed to load locations. Please try again later.
                 </AlertDescription>
               </Alert>
             )}
@@ -162,64 +209,109 @@ export default function Home() {
               </div>
             )}
 
-            {!isLoading && !error && topCounties.length > 0 && (
+            {!isLoading && !error && paginatedLocations.length > 0 && (
               <>
-                <h3 className="font-semibold text-sm text-muted-foreground mb-3">Top 10 Counties by Sales</h3>
-                {topCounties.map((county, index) => (
+                {paginatedLocations.map((location) => (
                   <Card 
-                    key={county.countyName}
+                    key={location.permitNumber}
                     className="p-4 hover-elevate active-elevate-2 cursor-pointer transition-all"
-                    onClick={() => setSelectedCounty(county)}
-                    data-testid={`card-county-${county.countyName.toLowerCase().replace(/\s+/g, '-')}`}
+                    onClick={() => setSelectedLocation(location)}
+                    data-testid={`card-location-${location.permitNumber}`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-lg font-bold text-muted-foreground">#{index + 1}</span>
-                          <h3 className="font-semibold truncate">{county.countyName}</h3>
-                        </div>
+                    <div className="space-y-2">
+                      <div>
+                        <h3 className="font-semibold truncate">{location.locationName}</h3>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {location.locationAddress}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          {county.locationCount} locations
+                          {location.locationCity}, {location.locationCounty}
                         </p>
                       </div>
-                      <div className="text-right flex-shrink-0">
+                      <div className="flex items-center justify-between">
                         <p className="font-mono font-bold text-lg">
-                          ${county.totalSales.toLocaleString()}
+                          ${location.totalSales.toLocaleString()}
                         </p>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          <div>L: ${(county.liquorSales / 1000).toFixed(0)}k</div>
-                          <div>W: ${(county.wineSales / 1000).toFixed(0)}k</div>
-                          <div>B: ${(county.beerSales / 1000).toFixed(0)}k</div>
+                        <div className="text-xs text-muted-foreground">
+                          <span style={{ color: "#9333ea" }}>■</span> ${(location.liquorSales / 1000).toFixed(0)}k{" "}
+                          <span style={{ color: "#dc2626" }}>■</span> ${(location.wineSales / 1000).toFixed(0)}k{" "}
+                          <span style={{ color: "#f59e0b" }}>■</span> ${(location.beerSales / 1000).toFixed(0)}k
                         </div>
                       </div>
                     </div>
                   </Card>
                 ))}
+
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      data-testid="button-prev-page"
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      data-testid="button-next-page"
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
               </>
             )}
 
-            {!isLoading && !error && counties && counties.length === 0 && (
+            {!isLoading && !error && filteredLocations.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                No county data available for the selected period.
+                {searchQuery || selectedCounty ? (
+                  <>
+                    <p>No locations found matching your filters.</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="mt-2"
+                    >
+                      Clear filters
+                    </Button>
+                  </>
+                ) : (
+                  <p>No locations available for the selected period.</p>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* County Locations Dialog */}
-      <CountyLocationsDialog
-        county={selectedCounty}
-        open={!!selectedCounty}
-        onClose={() => setSelectedCounty(null)}
+      {/* Location Detail Modal */}
+      <LocationDetailModal
+        location={selectedLocation}
+        open={!!selectedLocation}
+        onClose={() => setSelectedLocation(null)}
       />
 
       {/* Map Section */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="p-4 border-b flex-shrink-0">
           <div className="text-sm text-muted-foreground">
-            <p className="font-medium">Click any county to view locations sorted by sales</p>
-            <p className="text-xs mt-1">Hover over counties to see sales breakdown</p>
+            <p className="font-medium">
+              Click location markers for details • Click counties to filter sidebar
+            </p>
+            <p className="text-xs mt-1">
+              Marker colors: <span style={{ color: "#9333ea" }}>■ Liquor-dominant</span>{" "}
+              <span style={{ color: "#dc2626" }}>■ Wine-dominant</span>{" "}
+              <span style={{ color: "#f59e0b" }}>■ Beer-dominant</span>
+            </p>
           </div>
         </div>
         <div className="flex-1 relative">
@@ -231,31 +323,17 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <>
-              <InteractiveMap
-                counties={counties || []}
-                onCountyClick={(county) => {
-                  setSelectedCounty(county);
-                }}
-              />
-              <div className="absolute bottom-4 left-4 bg-card border rounded-lg p-3 shadow-lg">
-                <div className="text-xs font-medium mb-2">Sales Legend</div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs">
-                    <div className="w-3 h-3 bg-[#7c2d12]" />
-                    <span>Highest Sales</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <div className="w-3 h-3 bg-[#c2410c]" />
-                    <span>Medium Sales</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <div className="w-3 h-3 bg-[#f97316]" />
-                    <span>Lower Sales</span>
-                  </div>
-                </div>
-              </div>
-            </>
+            <InteractiveMap
+              locations={filteredLocations}
+              onLocationClick={(location) => {
+                setSelectedLocation(location);
+              }}
+              onCountyClick={(countyName) => {
+                setSelectedCounty(countyName);
+                setCurrentPage(1);
+              }}
+              selectedCounty={selectedCounty}
+            />
           )}
         </div>
       </div>
