@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +13,28 @@ interface LocationDetailModalProps {
 
 function formatMonthYear(dateStr: string): string {
   if (!dateStr) return "Unknown";
-  const year = dateStr.substring(0, 4);
-  const month = dateStr.substring(4, 6);
+  
+  // Handle both YYYYMMDD and ISO datetime formats
+  let year: string;
+  let month: string;
+  
+  if (dateStr.includes('-') || dateStr.includes('T')) {
+    // ISO format: "2019-07-31T00:00:00.000" or "2019-07-31"
+    const date = new Date(dateStr);
+    year = date.getFullYear().toString();
+    month = (date.getMonth() + 1).toString().padStart(2, '0');
+  } else {
+    // YYYYMMDD format: "20190731"
+    year = dateStr.substring(0, 4);
+    month = dateStr.substring(4, 6);
+  }
+  
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${monthNames[parseInt(month) - 1]} ${year}`;
+  const monthIndex = parseInt(month) - 1;
+  
+  if (monthIndex < 0 || monthIndex > 11) return "Unknown";
+  
+  return `${monthNames[monthIndex]} ${year}`;
 }
 
 function formatCurrency(value: number): string {
@@ -41,11 +59,11 @@ export function LocationDetailModal({ location, open, onClose }: LocationDetailM
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" data-testid="modal-location-detail">
         <DialogHeader>
           <DialogTitle className="text-2xl">{location.locationName}</DialogTitle>
-          <div className="text-sm text-muted-foreground space-y-1 mt-2">
+          <DialogDescription className="text-sm text-muted-foreground space-y-1">
             <p>{location.locationAddress}</p>
             <p>{location.locationCity}, TX {location.locationZip}</p>
             <p className="text-xs">Permit: {location.permitNumber}</p>
-          </div>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-3 gap-3 py-4">
