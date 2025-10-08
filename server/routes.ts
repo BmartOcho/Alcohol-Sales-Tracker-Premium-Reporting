@@ -24,10 +24,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(locations);
     } catch (error) {
-      console.error("Error fetching locations:", error);
+      console.error("Error fetching locations - Full error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorStack = error instanceof Error ? error.stack : "";
+      console.error("Error stack:", errorStack);
+      
       res.status(500).json({ 
         error: "Failed to fetch location data",
-        message: error instanceof Error ? error.message : "Unknown error"
+        message: `${errorMessage}. This may indicate network restrictions preventing access to data.texas.gov from published apps. Try running in development mode.`
       });
     }
   });
