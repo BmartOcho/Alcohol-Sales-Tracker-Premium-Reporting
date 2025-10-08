@@ -8,9 +8,20 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 
 ## Recent Changes
 
-### October 8, 2025
+### October 8, 2025 (Evening Update)
+- **Expanded Data Coverage**: Increased API fetch limit from 500 to 50,000 records, now retrieving ~20,500+ unique locations
+- **Monthly Sales History**: Preserved complete monthly sales records for each location (previously aggregated all months together)
+- **Time-based Filtering**: Added month/date selector to view sales data for specific time periods
+- **Location Detail Modal**: New modal component showing month-by-month sales breakdown with trend charts
+- **Performance Optimizations**: 
+  - Implemented pagination (500 locations per page with "Load more" functionality)
+  - Limited map markers to displayed locations to prevent rendering 20k+ markers simultaneously
+  - Used stable useEffect dependencies to prevent infinite render loops
+- **Cache Duration**: Extended cache TTL to 1 hour (from 15 minutes) due to larger dataset size
+
+### October 8, 2025 (Initial)
 - Implemented full-stack integration with Texas Open Data Portal API
-- Added real-time data fetching with 15-minute caching layer
+- Added real-time data fetching with caching layer
 - Integrated Leaflet maps with category-based marker visualization
 - Added loading states and error handling throughout the application
 - Implemented search and filtering functionality for establishments
@@ -50,7 +61,10 @@ Preferred communication style: Simple, everyday language.
 **Key Features Implementation**
 - Real-time search across establishment names, cities, and counties
 - Multi-select category filtering (liquor, wine, beer)
+- Month/date selector to view historical sales data
 - Interactive map markers with click handlers
+- Location detail modal showing complete monthly sales history
+- Progressive loading with pagination (500 locations per page)
 - Responsive design with mobile support via custom useIsMobile hook
 
 ### Backend Architecture
@@ -62,13 +76,17 @@ Preferred communication style: Simple, everyday language.
 
 **API Design**
 - RESTful endpoints under `/api` prefix
-- `/api/establishments` - fetches cached or fresh establishment data
-- `/api/establishments/refresh` - force refreshes data from external source
-- In-memory caching with 15-minute TTL to reduce external API calls
+- `/api/locations` - fetches cached or fresh location data with complete monthly records
+- `/api/locations/:permitNumber` - retrieves specific location with full monthly history
+- `/api/locations/refresh` - force refreshes data from external source
+- In-memory caching with 1-hour TTL to reduce external API calls (handles ~50k records)
 
 **Data Processing**
 - Texas Open Data API integration via `texasDataService`
-- Data transformation from raw Texas state records to normalized Establishment schema
+- Fetches up to 50,000 records in 10k batches to capture all permitted licenses
+- Preserves monthly sales records (each API record = one location's sales for one month)
+- Groups records by permit number while maintaining monthly history
+- Data transformation from raw Texas state records to LocationSummary schema with monthlyRecords array
 - Geocoding service with city-based coordinate mapping and random offset for visualization
 - Numeric value parsing for sales figures
 
@@ -107,3 +125,6 @@ Preferred communication style: Simple, everyday language.
 3. **Geocoding approximation** - Uses major Texas cities as base coordinates with random offsets to avoid API rate limits
 4. **Shared schema via Zod** - Type-safe data contracts between client and server using `@shared/schema`
 5. **Static data refresh** - Manual refresh endpoint allows updating data without automatic polling
+6. **Monthly record preservation** - Each API record represents one month's sales; stored as array to enable time-series analysis
+7. **Progressive loading** - Pagination limits DOM rendering to 500 items at a time for performance with 20k+ locations
+8. **Stable useEffect dependencies** - Uses .join() and .length to create stable primitives and prevent render loops
