@@ -19,10 +19,28 @@ type Category = "liquor" | "wine" | "beer";
 
 function formatMonthYear(dateStr: string): string {
   if (!dateStr) return "Unknown";
-  const year = dateStr.substring(0, 4);
-  const month = dateStr.substring(4, 6);
+  
+  // Handle both YYYYMMDD and ISO datetime formats
+  let year: string;
+  let month: string;
+  
+  if (dateStr.includes('-') || dateStr.includes('T')) {
+    // ISO format: "2019-07-31T00:00:00.000" or "2019-07-31"
+    const date = new Date(dateStr);
+    year = date.getFullYear().toString();
+    month = (date.getMonth() + 1).toString().padStart(2, '0');
+  } else {
+    // YYYYMMDD format: "20190731"
+    year = dateStr.substring(0, 4);
+    month = dateStr.substring(4, 6);
+  }
+  
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${monthNames[parseInt(month) - 1]} ${year}`;
+  const monthIndex = parseInt(month) - 1;
+  
+  if (monthIndex < 0 || monthIndex > 11) return "Unknown";
+  
+  return `${monthNames[monthIndex]} ${year}`;
 }
 
 export default function Home() {
