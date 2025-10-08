@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { InteractiveMap, type MapMarker } from "@/components/InteractiveMap";
 import { EstablishmentCard } from "@/components/EstablishmentCard";
 import { CategoryFilter } from "@/components/CategoryFilter";
@@ -7,103 +8,21 @@ import { SalesChart } from "@/components/SalesChart";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Star } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Star, AlertCircle } from "lucide-react";
+import type { Establishment } from "@shared/schema";
 
 type Category = "liquor" | "wine" | "beer";
-
-//todo: remove mock functionality
-const mockEstablishments = [
-  {
-    id: "1",
-    name: "The Rustic Tavern",
-    address: "123 Main Street",
-    city: "Austin",
-    county: "Travis",
-    lat: 30.2672,
-    lng: -97.7431,
-    totalSales: 125000,
-    liquorSales: 65000,
-    wineSales: 35000,
-    beerSales: 25000,
-  },
-  {
-    id: "2",
-    name: "Downtown Wine Bar",
-    address: "456 Congress Ave",
-    city: "Austin",
-    county: "Travis",
-    lat: 30.2699,
-    lng: -97.7441,
-    totalSales: 98000,
-    liquorSales: 28000,
-    wineSales: 52000,
-    beerSales: 18000,
-  },
-  {
-    id: "3",
-    name: "Texas Brew House",
-    address: "789 6th Street",
-    city: "Austin",
-    county: "Travis",
-    lat: 30.2669,
-    lng: -97.7428,
-    totalSales: 145000,
-    liquorSales: 45000,
-    wineSales: 35000,
-    beerSales: 65000,
-  },
-  {
-    id: "4",
-    name: "Houston Wine Cellar",
-    address: "321 Montrose Blvd",
-    city: "Houston",
-    county: "Harris",
-    lat: 29.7604,
-    lng: -95.3698,
-    totalSales: 182000,
-    liquorSales: 52000,
-    wineSales: 95000,
-    beerSales: 35000,
-  },
-  {
-    id: "5",
-    name: "Dallas Sports Bar",
-    address: "555 Commerce St",
-    city: "Dallas",
-    county: "Dallas",
-    lat: 32.7767,
-    lng: -96.7970,
-    totalSales: 215000,
-    liquorSales: 85000,
-    wineSales: 48000,
-    beerSales: 82000,
-  },
-  {
-    id: "6",
-    name: "San Antonio Cantina",
-    address: "888 River Walk",
-    city: "San Antonio",
-    county: "Bexar",
-    lat: 29.4241,
-    lng: -98.4936,
-    totalSales: 156000,
-    liquorSales: 72000,
-    wineSales: 42000,
-    beerSales: 42000,
-  },
-];
-
-const chartData = [
-  { name: "Austin", liquor: 138000, wine: 122000, beer: 108000 },
-  { name: "Houston", liquor: 52000, wine: 95000, beer: 35000 },
-  { name: "Dallas", liquor: 85000, wine: 48000, beer: 82000 },
-  { name: "San Antonio", liquor: 72000, wine: 42000, beer: 42000 },
-];
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<Category[]>(["liquor", "wine", "beer"]);
   const [selectedEstablishment, setSelectedEstablishment] = useState<string | null>(null);
+
+  const { data: establishments, isLoading, error } = useQuery<Establishment[]>({
+    queryKey: ["/api/establishments"],
+  });
 
   const handleCategoryToggle = (category: Category) => {
     setSelectedCategories((prev) =>
@@ -113,40 +32,66 @@ export default function Home() {
     );
   };
 
-  const filteredEstablishments = mockEstablishments.filter((est) => {
-    const matchesSearch =
-      est.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      est.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      est.county.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredEstablishments = useMemo(() => {
+    if (!establishments) return [];
 
-    const hasSelectedCategory =
-      selectedCategories.length === 0 ||
-      (selectedCategories.includes("liquor") && est.liquorSales > 0) ||
-      (selectedCategories.includes("wine") && est.wineSales > 0) ||
-      (selectedCategories.includes("beer") && est.beerSales > 0);
+    return establishments.filter((est) => {
+      const matchesSearch =
+        est.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        est.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        est.county.toLowerCase().includes(searchQuery.toLowerCase());
 
-    return matchesSearch && hasSelectedCategory;
-  });
+      const hasSelectedCategory =
+        selectedCategories.length === 0 ||
+        (selectedCategories.includes("liquor") && est.liquorSales > 0) ||
+        (selectedCategories.includes("wine") && est.wineSales > 0) ||
+        (selectedCategories.includes("beer") && est.beerSales > 0);
 
-  const mapMarkers: MapMarker[] = filteredEstablishments.map((est) => {
-    const primaryCategory = 
-      est.liquorSales >= est.wineSales && est.liquorSales >= est.beerSales
-        ? "liquor"
-        : est.wineSales >= est.beerSales
-        ? "wine"
-        : "beer";
+      return matchesSearch && hasSelectedCategory;
+    });
+  }, [establishments, searchQuery, selectedCategories]);
 
-    return {
-      id: est.id,
-      lat: est.lat,
-      lng: est.lng,
-      name: est.name,
-      category: primaryCategory,
-      sales: est.totalSales,
-    };
-  });
+  const mapMarkers: MapMarker[] = useMemo(() => {
+    return filteredEstablishments.map((est) => {
+      const primaryCategory = 
+        est.liquorSales >= est.wineSales && est.liquorSales >= est.beerSales
+          ? "liquor"
+          : est.wineSales >= est.beerSales
+          ? "wine"
+          : "beer";
 
-  const totalSales = filteredEstablishments.reduce((sum, est) => sum + est.totalSales, 0);
+      return {
+        id: est.id,
+        lat: est.lat,
+        lng: est.lng,
+        name: est.name,
+        category: primaryCategory,
+        sales: est.totalSales,
+      };
+    });
+  }, [filteredEstablishments]);
+
+  const chartData = useMemo(() => {
+    if (!filteredEstablishments.length) return [];
+
+    const cityAggregates = filteredEstablishments.reduce((acc, est) => {
+      if (!acc[est.city]) {
+        acc[est.city] = { name: est.city, liquor: 0, wine: 0, beer: 0 };
+      }
+      acc[est.city].liquor += est.liquorSales;
+      acc[est.city].wine += est.wineSales;
+      acc[est.city].beer += est.beerSales;
+      return acc;
+    }, {} as Record<string, { name: string; liquor: number; wine: number; beer: number }>);
+
+    return Object.values(cityAggregates)
+      .sort((a, b) => (b.liquor + b.wine + b.beer) - (a.liquor + a.wine + a.beer))
+      .slice(0, 10);
+  }, [filteredEstablishments]);
+
+  const totalSales = useMemo(() => {
+    return filteredEstablishments.reduce((sum, est) => sum + est.totalSales, 0);
+  }, [filteredEstablishments]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -172,19 +117,50 @@ export default function Home() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-mono font-bold" data-testid="text-total-filtered-sales">
-                ${totalSales.toLocaleString()}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {filteredEstablishments.length} establishments
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <>
+                  <p className="text-3xl font-mono font-bold" data-testid="text-total-filtered-sales">
+                    ${totalSales.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {filteredEstablishments.length} establishments
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
 
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-3">
-            {filteredEstablishments.map((est) => (
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Failed to load establishment data. Please try again later.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {isLoading && (
+              <>
+                {[...Array(5)].map((_, i) => (
+                  <Card key={i}>
+                    <CardHeader className="pb-3">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-1/2 mt-2" />
+                    </CardHeader>
+                    <CardContent>
+                      <Skeleton className="h-8 w-full" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            )}
+
+            {!isLoading && !error && filteredEstablishments.map((est) => (
               <div
                 key={est.id}
                 onClick={() => setSelectedEstablishment(est.id)}
@@ -202,6 +178,12 @@ export default function Home() {
                 />
               </div>
             ))}
+
+            {!isLoading && !error && filteredEstablishments.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No establishments found. Try adjusting your filters.
+              </div>
+            )}
           </div>
         </ScrollArea>
       </div>
@@ -209,33 +191,54 @@ export default function Home() {
       {/* Map Section */}
       <div className="flex-1 flex flex-col">
         <div className="p-4 border-b">
-          <SalesChart data={chartData} />
+          {isLoading ? (
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-48" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-[300px] w-full" />
+              </CardContent>
+            </Card>
+          ) : (
+            <SalesChart data={chartData} />
+          )}
         </div>
         <div className="flex-1 relative">
-          <InteractiveMap
-            markers={mapMarkers}
-            onMarkerClick={(marker) => {
-              setSelectedEstablishment(marker.id);
-              console.log("Selected establishment:", marker);
-            }}
-          />
-          <div className="absolute bottom-4 left-4 bg-card border rounded-lg p-3 shadow-lg">
-            <div className="text-xs font-medium mb-2">Category Legend</div>
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-xs">
-                <div className="w-3 h-3 rounded-full bg-[#a855f7]" />
-                <span>Liquor (Primary)</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs">
-                <div className="w-3 h-3 rounded-full bg-[#e11d48]" />
-                <span>Wine (Primary)</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs">
-                <div className="w-3 h-3 rounded-full bg-[#f59e0b]" />
-                <span>Beer (Primary)</span>
+          {isLoading ? (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <div className="text-center">
+                <Skeleton className="h-8 w-48 mx-auto mb-2" />
+                <Skeleton className="h-4 w-64 mx-auto" />
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <InteractiveMap
+                markers={mapMarkers}
+                onMarkerClick={(marker) => {
+                  setSelectedEstablishment(marker.id);
+                }}
+              />
+              <div className="absolute bottom-4 left-4 bg-card border rounded-lg p-3 shadow-lg">
+                <div className="text-xs font-medium mb-2">Category Legend</div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-3 h-3 rounded-full bg-[#a855f7]" />
+                    <span>Liquor (Primary)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-3 h-3 rounded-full bg-[#e11d48]" />
+                    <span>Wine (Primary)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-3 h-3 rounded-full bg-[#f59e0b]" />
+                    <span>Beer (Primary)</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
