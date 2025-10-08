@@ -50,16 +50,30 @@ function geocodeAddress(city: string): { lat: number; lng: number } {
   return { lat: 31.9686, lng: -99.9018 };
 }
 
-export async function fetchAllTexasAlcoholData(maxRecords: number = 50000): Promise<LocationSummary[]> {
+export async function fetchAllTexasAlcoholData(
+  maxRecords: number = Infinity,
+  startDate?: string,
+  endDate?: string
+): Promise<LocationSummary[]> {
   try {
     const batchSize = 10000;
     let offset = 0;
     let allRecords: TexasDataRecord[] = [];
     
-    console.log("Fetching Texas alcohol sales data...");
+    // Build date filter if provided
+    let whereClause = "";
+    if (startDate && endDate) {
+      // URL encode the WHERE clause properly
+      const whereCondition = `obligation_end_date_yyyymmdd >= '${startDate}' AND obligation_end_date_yyyymmdd <= '${endDate}'`;
+      whereClause = `&$where=${encodeURIComponent(whereCondition)}`;
+      console.log(`Fetching ALL Texas alcohol sales data from ${startDate} to ${endDate}...`);
+    } else {
+      console.log("Fetching Texas alcohol sales data (no date filter - limiting to 50k for safety)...");
+      maxRecords = 50000; // Safety limit when no date filter is applied
+    }
     
-    while (offset < maxRecords) {
-      const url = `${TEXAS_API_BASE}?$limit=${batchSize}&$offset=${offset}&$order=obligation_end_date_yyyymmdd DESC`;
+    while (allRecords.length < maxRecords) {
+      const url = `${TEXAS_API_BASE}?$limit=${batchSize}&$offset=${offset}&$order=obligation_end_date_yyyymmdd DESC${whereClause}`;
       
       const response = await fetch(url);
       if (!response.ok) {

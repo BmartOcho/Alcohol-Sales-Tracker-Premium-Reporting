@@ -48,16 +48,45 @@ export default function Home() {
   const [selectedCategories, setSelectedCategories] = useState<Category[]>(["liquor", "wine", "beer"]);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedYear, setSelectedYear] = useState<string>("2024");
   const [maxDisplayedLocations, setMaxDisplayedLocations] = useState(500);
 
+  // Calculate date range based on selected year
+  const dateRange = useMemo(() => {
+    if (selectedYear === "all") {
+      return { startDate: undefined, endDate: undefined };
+    }
+    const year = parseInt(selectedYear);
+    return {
+      startDate: `${year}-01-01T00:00:00.000`,
+      endDate: `${year}-12-31T23:59:59.999`
+    };
+  }, [selectedYear]);
+
   const { data: locations, isLoading, error } = useQuery<LocationSummary[]>({
-    queryKey: ["/api/locations"],
+    queryKey: ["/api/locations", dateRange.startDate, dateRange.endDate],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (dateRange.startDate && dateRange.endDate) {
+        params.append('startDate', dateRange.startDate);
+        params.append('endDate', dateRange.endDate);
+      }
+      const url = `/api/locations${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch locations');
+      return response.json();
+    },
   });
 
   // Reset pagination when filters change
   useEffect(() => {
     setMaxDisplayedLocations(500);
   }, [searchQuery, selectedCategories.join(','), selectedMonth, locations?.length]);
+
+  // Reset month filter when year changes
+  useEffect(() => {
+    setSelectedMonth("all");
+  }, [selectedYear]);
 
   const handleCategoryToggle = (category: Category) => {
     setSelectedCategories((prev) =>
@@ -190,21 +219,45 @@ export default function Home() {
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
           <CategoryFilter selectedCategories={selectedCategories} onToggle={handleCategoryToggle} />
           
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="flex-1" data-testid="select-month">
-                <SelectValue placeholder="Select month" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Months</SelectItem>
-                {availableMonths.slice(0, 24).map((month) => (
-                  <SelectItem key={month} value={month}>
-                    {formatMonthYear(month)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="flex-1" data-testid="select-year">
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  <SelectItem value="2025">2025</SelectItem>
+                  <SelectItem value="2024">2024</SelectItem>
+                  <SelectItem value="2023">2023</SelectItem>
+                  <SelectItem value="2022">2022</SelectItem>
+                  <SelectItem value="2021">2021</SelectItem>
+                  <SelectItem value="2020">2020</SelectItem>
+                  <SelectItem value="2019">2019</SelectItem>
+                  <SelectItem value="2018">2018</SelectItem>
+                  <SelectItem value="2017">2017</SelectItem>
+                  <SelectItem value="2016">2016</SelectItem>
+                  <SelectItem value="2015">2015</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {locations && locations.length > 0 && (
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-full" data-testid="select-month">
+                  <SelectValue placeholder="Filter by month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Months</SelectItem>
+                  {availableMonths.slice(0, 24).map((month) => (
+                    <SelectItem key={month} value={month}>
+                      {formatMonthYear(month)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
 
@@ -212,7 +265,7 @@ export default function Home() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Sales {selectedMonth !== "all" ? `(${formatMonthYear(selectedMonth)})` : "(All Time)"}
+                Total Sales {selectedMonth !== "all" ? `(${formatMonthYear(selectedMonth)})` : selectedYear !== "all" ? `(${selectedYear})` : "(All Time)"}
               </CardTitle>
             </CardHeader>
             <CardContent>

@@ -6,15 +6,20 @@ import { fetchAllTexasAlcoholData } from "./services/texasDataService";
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/locations", async (req, res) => {
     try {
-      let locations = storage.getCachedLocations();
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+      
+      // Create cache key based on date range
+      const cacheKey = startDate && endDate ? `${startDate}_${endDate}` : 'default';
+      let locations = storage.getCachedLocations(cacheKey);
       
       if (!locations) {
-        console.log("Cache miss - fetching fresh data from Texas API...");
-        const maxRecords = parseInt(req.query.maxRecords as string) || 50000;
-        locations = await fetchAllTexasAlcoholData(maxRecords);
-        storage.setCachedLocations(locations);
+        console.log(`Cache miss for ${cacheKey} - fetching fresh data from Texas API...`);
+        // Fetch ALL records for the date range (no maxRecords limit when dates provided)
+        locations = await fetchAllTexasAlcoholData(Infinity, startDate, endDate);
+        storage.setCachedLocations(locations, cacheKey);
       } else {
-        console.log(`Cache hit - returning ${locations.length} locations from cache`);
+        console.log(`Cache hit for ${cacheKey} - returning ${locations.length} locations from cache`);
       }
 
       res.json(locations);
@@ -30,9 +35,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/locations/refresh", async (req, res) => {
     try {
       console.log("Manual refresh requested...");
-      const maxRecords = parseInt(req.query.maxRecords as string) || 50000;
-      const locations = await fetchAllTexasAlcoholData(maxRecords);
-      storage.setCachedLocations(locations);
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+      const cacheKey = startDate && endDate ? `${startDate}_${endDate}` : 'default';
+      
+      // Fetch ALL records for the date range
+      const locations = await fetchAllTexasAlcoholData(Infinity, startDate, endDate);
+      storage.setCachedLocations(locations, cacheKey);
       res.json({ success: true, count: locations.length });
     } catch (error) {
       console.error("Error refreshing locations:", error);
@@ -45,7 +54,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/locations/:permitNumber", async (req, res) => {
     try {
-      const locations = storage.getCachedLocations();
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+      const cacheKey = startDate && endDate ? `${startDate}_${endDate}` : 'default';
+      
+      const locations = storage.getCachedLocations(cacheKey);
       if (!locations) {
         return res.status(503).json({ error: "Data not loaded yet" });
       }

@@ -6,14 +6,13 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getLocations(): Promise<LocationSummary[]>;
-  getCachedLocations(): LocationSummary[] | null;
-  setCachedLocations(locations: LocationSummary[]): void;
+  getCachedLocations(cacheKey?: string): LocationSummary[] | null;
+  setCachedLocations(locations: LocationSummary[], cacheKey?: string): void;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
-  private cachedLocations: LocationSummary[] | null = null;
-  private cacheTimestamp: number = 0;
+  private locationCaches: Map<string, { data: LocationSummary[], timestamp: number }> = new Map();
   private readonly CACHE_TTL = 1000 * 60 * 60; // 1 hour cache for large dataset
 
   constructor() {
@@ -38,24 +37,28 @@ export class MemStorage implements IStorage {
   }
 
   async getLocations(): Promise<LocationSummary[]> {
+    const cache = this.locationCaches.get('default');
     const now = Date.now();
-    if (this.cachedLocations && (now - this.cacheTimestamp) < this.CACHE_TTL) {
-      return this.cachedLocations;
+    if (cache && (now - cache.timestamp) < this.CACHE_TTL) {
+      return cache.data;
     }
     return [];
   }
 
-  getCachedLocations(): LocationSummary[] | null {
+  getCachedLocations(cacheKey: string = 'default'): LocationSummary[] | null {
+    const cache = this.locationCaches.get(cacheKey);
     const now = Date.now();
-    if (this.cachedLocations && (now - this.cacheTimestamp) < this.CACHE_TTL) {
-      return this.cachedLocations;
+    if (cache && (now - cache.timestamp) < this.CACHE_TTL) {
+      return cache.data;
     }
     return null;
   }
 
-  setCachedLocations(locations: LocationSummary[]): void {
-    this.cachedLocations = locations;
-    this.cacheTimestamp = Date.now();
+  setCachedLocations(locations: LocationSummary[], cacheKey: string = 'default'): void {
+    this.locationCaches.set(cacheKey, {
+      data: locations,
+      timestamp: Date.now()
+    });
   }
 }
 
