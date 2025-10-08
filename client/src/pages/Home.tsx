@@ -10,18 +10,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Star, AlertCircle } from "lucide-react";
-import type { Establishment } from "@shared/schema";
+import { Star, AlertCircle, Calendar } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { LocationSummary, MonthlySalesRecord } from "@shared/schema";
 
 type Category = "liquor" | "wine" | "beer";
+
+function formatMonthYear(dateStr: string): string {
+  if (!dateStr) return "Unknown";
+  const year = dateStr.substring(0, 4);
+  const month = dateStr.substring(4, 6);
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${monthNames[parseInt(month) - 1]} ${year}`;
+}
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<Category[]>(["liquor", "wine", "beer"]);
-  const [selectedEstablishment, setSelectedEstablishment] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
 
-  const { data: establishments, isLoading, error } = useQuery<Establishment[]>({
-    queryKey: ["/api/establishments"],
+  const { data: locations, isLoading, error } = useQuery<LocationSummary[]>({
+    queryKey: ["/api/locations"],
   });
 
   const handleCategoryToggle = (category: Category) => {
@@ -32,66 +42,109 @@ export default function Home() {
     );
   };
 
-  const filteredEstablishments = useMemo(() => {
-    if (!establishments) return [];
-
-    return establishments.filter((est) => {
-      const matchesSearch =
-        est.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        est.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        est.county.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const hasSelectedCategory =
-        selectedCategories.length === 0 ||
-        (selectedCategories.includes("liquor") && est.liquorSales > 0) ||
-        (selectedCategories.includes("wine") && est.wineSales > 0) ||
-        (selectedCategories.includes("beer") && est.beerSales > 0);
-
-      return matchesSearch && hasSelectedCategory;
+  const availableMonths = useMemo(() => {
+    if (!locations) return [];
+    const monthSet = new Set<string>();
+    locations.forEach(loc => {
+      loc.monthlyRecords.forEach(record => {
+        if (record.obligationEndDate) {
+          monthSet.add(record.obligationEndDate);
+        }
+      });
     });
-  }, [establishments, searchQuery, selectedCategories]);
+    return Array.from(monthSet).sort((a, b) => b.localeCompare(a));
+  }, [locations]);
+
+  const filteredLocations = useMemo(() => {
+    if (!locations) return [];
+
+    return locations
+      .map(loc => {
+        // Filter monthly records by selected month
+        const filteredMonthlyRecords = selectedMonth === "all" 
+          ? loc.monthlyRecords
+          : loc.monthlyRecords.filter(r => r.obligationEndDate === selectedMonth);
+
+        if (filteredMonthlyRecords.length === 0) return null;
+
+        // Recalculate totals based on filtered months
+        const totalSales = filteredMonthlyRecords.reduce((sum, r) => sum + r.totalReceipts, 0);
+        const liquorSales = filteredMonthlyRecords.reduce((sum, r) => sum + r.liquorReceipts, 0);
+        const wineSales = filteredMonthlyRecords.reduce((sum, r) => sum + r.wineReceipts, 0);
+        const beerSales = filteredMonthlyRecords.reduce((sum, r) => sum + r.beerReceipts, 0);
+
+        return {
+          ...loc,
+          totalSales,
+          liquorSales,
+          wineSales,
+          beerSales,
+          monthlyRecords: filteredMonthlyRecords,
+        };
+      })
+      .filter((loc): loc is LocationSummary => loc !== null)
+      .filter((loc) => {
+        const matchesSearch =
+          loc.locationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          loc.locationCity.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          loc.locationCounty.toLowerCase().includes(searchQuery.toLowerCase());
+
+        const hasSelectedCategory =
+          selectedCategories.length === 0 ||
+          (selectedCategories.includes("liquor") && loc.liquorSales > 0) ||
+          (selectedCategories.includes("wine") && loc.wineSales > 0) ||
+          (selectedCategories.includes("beer") && loc.beerSales > 0);
+
+        return matchesSearch && hasSelectedCategory;
+      });
+  }, [locations, searchQuery, selectedCategories, selectedMonth]);
 
   const mapMarkers: MapMarker[] = useMemo(() => {
-    return filteredEstablishments.map((est) => {
+    return filteredLocations.map((loc) => {
       const primaryCategory = 
-        est.liquorSales >= est.wineSales && est.liquorSales >= est.beerSales
+        loc.liquorSales >= loc.wineSales && loc.liquorSales >= loc.beerSales
           ? "liquor"
-          : est.wineSales >= est.beerSales
+          : loc.wineSales >= loc.beerSales
           ? "wine"
           : "beer";
 
       return {
-        id: est.id,
-        lat: est.lat,
-        lng: est.lng,
-        name: est.name,
+        id: loc.permitNumber,
+        lat: loc.lat,
+        lng: loc.lng,
+        name: loc.locationName,
         category: primaryCategory,
-        sales: est.totalSales,
+        sales: loc.totalSales,
       };
     });
-  }, [filteredEstablishments]);
+  }, [filteredLocations]);
 
   const chartData = useMemo(() => {
-    if (!filteredEstablishments.length) return [];
+    if (!filteredLocations.length) return [];
 
-    const cityAggregates = filteredEstablishments.reduce((acc, est) => {
-      if (!acc[est.city]) {
-        acc[est.city] = { name: est.city, liquor: 0, wine: 0, beer: 0 };
+    const cityAggregates = filteredLocations.reduce((acc, loc) => {
+      if (!acc[loc.locationCity]) {
+        acc[loc.locationCity] = { name: loc.locationCity, liquor: 0, wine: 0, beer: 0 };
       }
-      acc[est.city].liquor += est.liquorSales;
-      acc[est.city].wine += est.wineSales;
-      acc[est.city].beer += est.beerSales;
+      acc[loc.locationCity].liquor += loc.liquorSales;
+      acc[loc.locationCity].wine += loc.wineSales;
+      acc[loc.locationCity].beer += loc.beerSales;
       return acc;
     }, {} as Record<string, { name: string; liquor: number; wine: number; beer: number }>);
 
     return Object.values(cityAggregates)
       .sort((a, b) => (b.liquor + b.wine + b.beer) - (a.liquor + a.wine + a.beer))
       .slice(0, 10);
-  }, [filteredEstablishments]);
+  }, [filteredLocations]);
 
   const totalSales = useMemo(() => {
-    return filteredEstablishments.reduce((sum, est) => sum + est.totalSales, 0);
-  }, [filteredEstablishments]);
+    return filteredLocations.reduce((sum, loc) => sum + loc.totalSales, 0);
+  }, [filteredLocations]);
+
+  const selectedLocationData = useMemo(() => {
+    if (!selectedLocation || !locations) return null;
+    return locations.find(loc => loc.permitNumber === selectedLocation);
+  }, [selectedLocation, locations]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -107,13 +160,30 @@ export default function Home() {
           </div>
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
           <CategoryFilter selectedCategories={selectedCategories} onToggle={handleCategoryToggle} />
+          
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="flex-1" data-testid="select-month">
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Months</SelectItem>
+                {availableMonths.slice(0, 24).map((month) => (
+                  <SelectItem key={month} value={month}>
+                    {formatMonthYear(month)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="p-4 border-b">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Sales (Filtered)
+                Total Sales {selectedMonth !== "all" ? `(${formatMonthYear(selectedMonth)})` : "(All Time)"}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -125,7 +195,7 @@ export default function Home() {
                     ${totalSales.toLocaleString()}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {filteredEstablishments.length} establishments
+                    {filteredLocations.length} locations
                   </p>
                 </>
               )}
@@ -139,7 +209,7 @@ export default function Home() {
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Failed to load establishment data. Please try again later.
+                  Failed to load location data. Please try again later.
                 </AlertDescription>
               </Alert>
             )}
@@ -160,28 +230,28 @@ export default function Home() {
               </>
             )}
 
-            {!isLoading && !error && filteredEstablishments.map((est) => (
+            {!isLoading && !error && filteredLocations.map((loc) => (
               <div
-                key={est.id}
-                onClick={() => setSelectedEstablishment(est.id)}
-                className={selectedEstablishment === est.id ? "ring-2 ring-primary rounded-lg" : ""}
+                key={loc.permitNumber}
+                onClick={() => setSelectedLocation(loc.permitNumber)}
+                className={selectedLocation === loc.permitNumber ? "ring-2 ring-primary rounded-lg" : ""}
               >
                 <EstablishmentCard
-                  name={est.name}
-                  address={est.address}
-                  city={est.city}
-                  county={est.county}
-                  totalSales={est.totalSales}
-                  liquorSales={est.liquorSales}
-                  wineSales={est.wineSales}
-                  beerSales={est.beerSales}
+                  name={loc.locationName}
+                  address={loc.locationAddress}
+                  city={loc.locationCity}
+                  county={loc.locationCounty}
+                  totalSales={loc.totalSales}
+                  liquorSales={loc.liquorSales}
+                  wineSales={loc.wineSales}
+                  beerSales={loc.beerSales}
                 />
               </div>
             ))}
 
-            {!isLoading && !error && filteredEstablishments.length === 0 && (
+            {!isLoading && !error && filteredLocations.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                No establishments found. Try adjusting your filters.
+                No locations found. Try adjusting your filters.
               </div>
             )}
           </div>
@@ -217,7 +287,7 @@ export default function Home() {
               <InteractiveMap
                 markers={mapMarkers}
                 onMarkerClick={(marker) => {
-                  setSelectedEstablishment(marker.id);
+                  setSelectedLocation(marker.id);
                 }}
               />
               <div className="absolute bottom-4 left-4 bg-card border rounded-lg p-3 shadow-lg">
