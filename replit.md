@@ -8,18 +8,28 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 
 ## Recent Changes
 
-### October 8, 2025 (Latest - Unlimited Data Access)
+### October 8, 2025 (Latest - County Choropleth Visualization)
+- **County-Based Map Visualization**: Transformed from individual location markers to interactive county polygons
+  - GeoJSON-based rendering of all 254 Texas counties (29MB boundary data from TxDOT)
+  - 5-tier color gradient (orange to dark brown) based on county sales volume
+  - Hover interactions: counties highlight with border emphasis and bring-to-front effect
+  - Click interaction: opens ranked list of all locations in county (sorted highest to lowest sales)
+- **County Aggregation API**: New `/api/counties` endpoint aggregates locations by county
+  - Includes: total sales, liquor/wine/beer breakdown, location count, complete location array
+  - Reuses existing caching infrastructure with year-based filtering
+- **Enhanced User Experience**:
+  - Tooltip on hover displays: county name, total sales, category breakdown, location count
+  - CountyLocationsDialog component shows detailed ranked location list when county clicked
+  - Top 10 counties by sales shown in sidebar for quick navigation
+  - Simplified controls focused on year selection for county-level analysis
+- **Performance**: 256k+ records (2024) aggregated into 254 counties for efficient rendering
+
+### October 8, 2025 (Earlier - Unlimited Data Access)
 - **Unlimited Dataset Access**: Removed 50k record cap when year filter is applied - now fetches ALL available TABC records for selected year
 - **Year-Based Filtering**: Added year selector UI (2019-2025, All Years) that queries complete historical datasets
 - **Properly Encoded API Queries**: Fixed WHERE clause URL encoding to prevent API 500 errors when fetching large datasets
 - **Smart Safety Limits**: Maintains 50k cap only when no date filter is applied (prevents attempting to fetch all 3.5M records at once)
 - **Per-Year Caching**: Separate cache keys for each year (e.g., "2024-01-01_2024-12-31") with 1-hour TTL
-- **Monthly Sales History**: Complete month-by-month sales records preserved for each location with trend visualization
-- **Location Detail Modal**: Shows complete sales history with interactive charts (fixed z-index to display above map)
-- **Performance Optimizations**: 
-  - Batch fetching in 10k chunks, continues until API returns fewer records (indicating dataset exhausted)
-  - Pagination (500 locations per page) prevents rendering 20k+ markers simultaneously
-  - Stable useEffect dependencies prevent infinite render loops
 
 ### October 8, 2025 (Initial)
 - Implemented full-stack integration with Texas Open Data Portal API
@@ -57,16 +67,18 @@ Preferred communication style: Simple, everyday language.
 
 **Mapping & Visualization**
 - Leaflet for interactive map rendering with OpenStreetMap tiles
-- Recharts for data visualization (bar charts, sales analytics)
-- Custom marker system with category-based color coding (purple for liquor, red for wine, amber for beer)
+- GeoJSON-based county polygon rendering (254 Texas counties from TxDOT data)
+- 5-tier choropleth color gradient based on county sales volume
+- Interactive hover effects with tooltips showing sales breakdowns
+- Click-to-drill-down functionality for county-level exploration
 
 **Key Features Implementation**
-- Real-time search across establishment names, cities, and counties
-- Multi-select category filtering (liquor, wine, beer)
-- Month/date selector to view historical sales data
-- Interactive map markers with click handlers
-- Location detail modal showing complete monthly sales history
-- Progressive loading with pagination (500 locations per page)
+- Year-based filtering (2015-2025, All Years) for historical analysis
+- County choropleth map with color-coded sales intensity
+- Hover interactions: county highlighting, tooltips with sales data
+- Click interaction: ranked location list dialog (highest to lowest sales)
+- Top 10 counties sidebar for quick navigation
+- County aggregation showing total sales, category breakdown, and location count
 - Responsive design with mobile support via custom useIsMobile hook
 
 ### Backend Architecture
