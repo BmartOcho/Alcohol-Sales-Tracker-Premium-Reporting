@@ -8,16 +8,18 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 
 ## Recent Changes
 
-### October 8, 2025 (Evening Update)
-- **Expanded Data Coverage**: Increased API fetch limit from 500 to 50,000 records, now retrieving ~20,500+ unique locations
-- **Monthly Sales History**: Preserved complete monthly sales records for each location (previously aggregated all months together)
-- **Time-based Filtering**: Added month/date selector to view sales data for specific time periods
-- **Location Detail Modal**: New modal component showing month-by-month sales breakdown with trend charts
+### October 8, 2025 (Latest - Unlimited Data Access)
+- **Unlimited Dataset Access**: Removed 50k record cap when year filter is applied - now fetches ALL available TABC records for selected year
+- **Year-Based Filtering**: Added year selector UI (2019-2025, All Years) that queries complete historical datasets
+- **Properly Encoded API Queries**: Fixed WHERE clause URL encoding to prevent API 500 errors when fetching large datasets
+- **Smart Safety Limits**: Maintains 50k cap only when no date filter is applied (prevents attempting to fetch all 3.5M records at once)
+- **Per-Year Caching**: Separate cache keys for each year (e.g., "2024-01-01_2024-12-31") with 1-hour TTL
+- **Monthly Sales History**: Complete month-by-month sales records preserved for each location with trend visualization
+- **Location Detail Modal**: Shows complete sales history with interactive charts (fixed z-index to display above map)
 - **Performance Optimizations**: 
-  - Implemented pagination (500 locations per page with "Load more" functionality)
-  - Limited map markers to displayed locations to prevent rendering 20k+ markers simultaneously
-  - Used stable useEffect dependencies to prevent infinite render loops
-- **Cache Duration**: Extended cache TTL to 1 hour (from 15 minutes) due to larger dataset size
+  - Batch fetching in 10k chunks, continues until API returns fewer records (indicating dataset exhausted)
+  - Pagination (500 locations per page) prevents rendering 20k+ markers simultaneously
+  - Stable useEffect dependencies prevent infinite render loops
 
 ### October 8, 2025 (Initial)
 - Implemented full-stack integration with Texas Open Data Portal API
@@ -83,7 +85,9 @@ Preferred communication style: Simple, everyday language.
 
 **Data Processing**
 - Texas Open Data API integration via `texasDataService`
-- Fetches up to 50,000 records in 10k batches to capture all permitted licenses
+- Unlimited record fetching when year filter is applied (fetches ALL available records in 10k batches)
+- Safety limit of 50k records only when no date filter provided (prevents fetching entire 3.5M record dataset)
+- URL-encoded WHERE clauses for date range filtering to prevent API errors
 - Preserves monthly sales records (each API record = one location's sales for one month)
 - Groups records by permit number while maintaining monthly history
 - Data transformation from raw Texas state records to LocationSummary schema with monthlyRecords array
