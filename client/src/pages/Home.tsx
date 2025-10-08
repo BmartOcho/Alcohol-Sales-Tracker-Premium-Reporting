@@ -96,9 +96,14 @@ export default function Home() {
       }
       const url = `/api/locations${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch locations');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Server error: ${response.status}`);
+      }
       return response.json();
     },
+    retry: 2,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   // Filter locations based on search and county selection
@@ -251,7 +256,7 @@ export default function Home() {
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Failed to load locations. Please try again later.
+                  Failed to load locations: {error instanceof Error ? error.message : 'Unknown error'}. Please try again later.
                 </AlertDescription>
               </Alert>
             )}

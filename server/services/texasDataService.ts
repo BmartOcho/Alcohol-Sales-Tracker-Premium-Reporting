@@ -75,33 +75,47 @@ export async function fetchAllTexasAlcoholData(
     while (allRecords.length < maxRecords) {
       const url = `${TEXAS_API_BASE}?$limit=${batchSize}&$offset=${offset}&$order=obligation_end_date_yyyymmdd DESC${whereClause}`;
       
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Texas API request failed: ${response.status}`);
-      }
-
-      const rawData = await response.json();
+      // Add timeout for production environments (2 minutes per batch)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
       
-      if (rawData.length === 0) {
-        break;
-      }
-
-      for (const record of rawData) {
-        try {
-          const validated = texasDataRecordSchema.parse(record);
-          allRecords.push(validated);
-        } catch (e) {
-          // Skip invalid records
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`Texas API request failed: ${response.status} ${response.statusText}`);
         }
-      }
 
-      console.log(`Fetched ${allRecords.length} records so far...`);
-      
-      if (rawData.length < batchSize) {
-        break;
+        const rawData = await response.json();
+        
+        if (rawData.length === 0) {
+          break;
+        }
+
+        for (const record of rawData) {
+          try {
+            const validated = texasDataRecordSchema.parse(record);
+            allRecords.push(validated);
+          } catch (e) {
+            // Skip invalid records
+          }
+        }
+
+        console.log(`Fetched ${allRecords.length} records so far...`);
+        
+        if (rawData.length < batchSize) {
+          break;
+        }
+        
+        offset += batchSize;
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error(`Request timeout after 2 minutes while fetching batch at offset ${offset}`);
+        }
+        throw fetchError;
       }
-      
-      offset += batchSize;
     }
 
     console.log(`Total records fetched: ${allRecords.length}`);
