@@ -1,17 +1,20 @@
-import { type User, type InsertUser } from "@shared/schema";
+import { type User, type InsertUser, type Establishment, type TexasDataRecord } from "@shared/schema";
 import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getEstablishments(): Promise<Establishment[]>;
+  getCachedEstablishments(): Establishment[] | null;
+  setCachedEstablishments(establishments: Establishment[]): void;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
+  private cachedEstablishments: Establishment[] | null = null;
+  private cacheTimestamp: number = 0;
+  private readonly CACHE_TTL = 1000 * 60 * 15; // 15 minutes
 
   constructor() {
     this.users = new Map();
@@ -32,6 +35,27 @@ export class MemStorage implements IStorage {
     const user: User = { ...insertUser, id };
     this.users.set(id, user);
     return user;
+  }
+
+  async getEstablishments(): Promise<Establishment[]> {
+    const now = Date.now();
+    if (this.cachedEstablishments && (now - this.cacheTimestamp) < this.CACHE_TTL) {
+      return this.cachedEstablishments;
+    }
+    return [];
+  }
+
+  getCachedEstablishments(): Establishment[] | null {
+    const now = Date.now();
+    if (this.cachedEstablishments && (now - this.cacheTimestamp) < this.CACHE_TTL) {
+      return this.cachedEstablishments;
+    }
+    return null;
+  }
+
+  setCachedEstablishments(establishments: Establishment[]): void {
+    this.cachedEstablishments = establishments;
+    this.cacheTimestamp = Date.now();
   }
 }
 
