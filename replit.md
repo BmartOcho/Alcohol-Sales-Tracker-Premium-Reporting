@@ -8,21 +8,30 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 
 ## Recent Changes
 
-### October 8, 2025 (Latest - County Choropleth Visualization)
-- **County-Based Map Visualization**: Transformed from individual location markers to interactive county polygons
-  - GeoJSON-based rendering of all 254 Texas counties (29MB boundary data from TxDOT)
-  - 5-tier color gradient (orange to dark brown) based on county sales volume
-  - Hover interactions: counties highlight with border emphasis and bring-to-front effect
-  - Click interaction: opens ranked list of all locations in county (sorted highest to lowest sales)
-- **County Aggregation API**: New `/api/counties` endpoint aggregates locations by county
-  - Includes: total sales, liquor/wine/beer breakdown, location count, complete location array
-  - Reuses existing caching infrastructure with year-based filtering
-- **Enhanced User Experience**:
-  - Tooltip on hover displays: county name, total sales, category breakdown, location count
-  - CountyLocationsDialog component shows detailed ranked location list when county clicked
-  - Top 10 counties by sales shown in sidebar for quick navigation
-  - Simplified controls focused on year selection for county-level analysis
-- **Performance**: 256k+ records (2024) aggregated into 254 counties for efficient rendering
+### October 8, 2025 (Latest - Hybrid Map Visualization)
+- **Hybrid Map Approach**: Combines individual location markers with interactive county overlay
+  - **Primary Layer**: 21,000+ location markers (CircleMarker) colored by dominant category
+    - Purple: liquor-dominant, Red: wine-dominant, Amber: beer-dominant
+    - Click marker → opens LocationDetailModal with sales history
+    - Popups show location details and sales breakdown
+  - **Overlay Layer**: Semi-transparent county polygons (254 Texas counties, 29MB GeoJSON from TxDOT)
+    - Green fill: counties with locations, Gray fill: no locations, Blue fill: selected county
+    - Low opacity (0.05-0.3) to not obscure underlying markers
+    - Hover → tooltip shows county name, location count, total sales
+    - Click → filters sidebar to show only locations in that county
+  - **Case-Normalized Filtering**: All county comparisons use uppercase for consistent matching
+- **Interactive Filtering**:
+  - Year selector (2015-2025, All Years) for historical data
+  - Search box filters by location name, city, county, or address
+  - County click filters sidebar to selected county with visual indicator
+  - Clear filter button restores all locations
+  - Pagination (100 locations per page) for performance
+- **User Experience**:
+  - Map shows all location markers with county boundaries overlay
+  - Sidebar displays filterable/searchable location list
+  - County selection highlights county in blue and filters sidebar
+  - "Filtered: {County} County" badge with X button to clear
+  - Empty state when county has no locations
 
 ### October 8, 2025 (Earlier - Unlimited Data Access)
 - **Unlimited Dataset Access**: Removed 50k record cap when year filter is applied - now fetches ALL available TABC records for selected year
@@ -67,18 +76,20 @@ Preferred communication style: Simple, everyday language.
 
 **Mapping & Visualization**
 - Leaflet for interactive map rendering with OpenStreetMap tiles
-- GeoJSON-based county polygon rendering (254 Texas counties from TxDOT data)
-- 5-tier choropleth color gradient based on county sales volume
-- Interactive hover effects with tooltips showing sales breakdowns
-- Click-to-drill-down functionality for county-level exploration
+- Hybrid visualization combining location markers and county overlay
+- CircleMarker rendering for 21k+ individual locations with category-based colors
+- Semi-transparent GeoJSON county polygons (254 Texas counties from TxDOT data)
+- Interactive hover effects with tooltips showing location/county data
+- Click handlers for both markers (location details) and counties (sidebar filter)
 
 **Key Features Implementation**
 - Year-based filtering (2015-2025, All Years) for historical analysis
-- County choropleth map with color-coded sales intensity
-- Hover interactions: county highlighting, tooltips with sales data
-- Click interaction: ranked location list dialog (highest to lowest sales)
-- Top 10 counties sidebar for quick navigation
-- County aggregation showing total sales, category breakdown, and location count
+- Location marker map with county polygon overlay for geographic context
+- Search functionality across location names, cities, counties, and addresses
+- County click interaction filters sidebar to show locations in that county
+- Visual indicators: green counties (has data), gray (no data), blue (selected)
+- Pagination (100 locations per page) for performance with large datasets
+- Clear filter button to restore full location list
 - Responsive design with mobile support via custom useIsMobile hook
 
 ### Backend Architecture
