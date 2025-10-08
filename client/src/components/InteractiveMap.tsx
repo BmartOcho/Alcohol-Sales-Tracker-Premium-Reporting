@@ -3,6 +3,61 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { LocationSummary } from "@shared/schema";
 
+// Texas Comptroller county codes (used by TABC data)
+const COUNTY_NAME_TO_CODE: Record<string, string> = {
+  "ANDERSON": "001", "ANDREWS": "002", "ANGELINA": "003", "ARANSAS": "004", "ARCHER": "005",
+  "ARMSTRONG": "006", "ATASCOSA": "007", "AUSTIN": "008", "BAILEY": "009", "BANDERA": "010",
+  "BASTROP": "011", "BAYLOR": "012", "BEE": "013", "BELL": "014", "BEXAR": "015",
+  "BLANCO": "016", "BORDEN": "017", "BOSQUE": "018", "BOWIE": "019", "BRAZORIA": "020",
+  "BRAZOS": "021", "BREWSTER": "022", "BRISCOE": "023", "BROOKS": "024", "BROWN": "025",
+  "BURLESON": "026", "BURNET": "027", "CALDWELL": "028", "CALHOUN": "029", "CALLAHAN": "030",
+  "CAMERON": "031", "CAMP": "032", "CARSON": "033", "CASS": "034", "CASTRO": "035",
+  "CHAMBERS": "036", "CHEROKEE": "037", "CHILDRESS": "038", "CLAY": "039", "COCHRAN": "040",
+  "COKE": "041", "COLEMAN": "042", "COLLIN": "043", "COLLINGSWORTH": "044", "COLORADO": "045",
+  "COMAL": "046", "COMANCHE": "047", "CONCHO": "048", "COOKE": "049", "CORYELL": "050",
+  "COTTLE": "051", "CRANE": "052", "CROCKETT": "053", "CROSBY": "054", "CULBERSON": "055",
+  "DALLAM": "056", "DALLAS": "057", "DAWSON": "058", "DEAF SMITH": "059", "DELTA": "060",
+  "DENTON": "061", "DEWITT": "062", "DICKENS": "063", "DIMMIT": "064", "DONLEY": "065",
+  "DUVAL": "066", "EASTLAND": "067", "ECTOR": "068", "EDWARDS": "069", "ELLIS": "070",
+  "EL PASO": "071", "ERATH": "072", "FALLS": "073", "FANNIN": "074", "FAYETTE": "075",
+  "FISHER": "076", "FLOYD": "077", "FOARD": "078", "FORT BEND": "079", "FRANKLIN": "080",
+  "FREESTONE": "081", "FRIO": "082", "GAINES": "083", "GALVESTON": "084", "GARZA": "085",
+  "GILLESPIE": "086", "GLASSCOCK": "087", "GOLIAD": "088", "GONZALES": "089", "GRAY": "090",
+  "GRAYSON": "091", "GREGG": "092", "GRIMES": "093", "GUADALUPE": "094", "HALE": "095",
+  "HALL": "096", "HAMILTON": "097", "HANSFORD": "098", "HARDEMAN": "099", "HARDIN": "100",
+  "HARRIS": "101", "HARRISON": "102", "HARTLEY": "103", "HASKELL": "104", "HAYS": "105",
+  "HEMPHILL": "106", "HENDERSON": "107", "HIDALGO": "108", "HILL": "109", "HOCKLEY": "110",
+  "HOOD": "111", "HOPKINS": "112", "HOUSTON": "113", "HOWARD": "114", "HUDSPETH": "115",
+  "HUNT": "116", "HUTCHINSON": "117", "IRION": "118", "JACK": "119", "JACKSON": "120",
+  "JASPER": "121", "JEFF DAVIS": "122", "JEFFERSON": "123", "JIM HOGG": "124", "JIM WELLS": "125",
+  "JOHNSON": "126", "JONES": "127", "KARNES": "128", "KAUFMAN": "129", "KENDALL": "130",
+  "KENEDY": "131", "KENT": "132", "KERR": "133", "KIMBLE": "134", "KING": "135",
+  "KINNEY": "136", "KLEBERG": "137", "KNOX": "138", "LAMAR": "139", "LAMB": "140",
+  "LAMPASAS": "141", "LASALLE": "142", "LA SALLE": "142", "LAVACA": "143", "LEE": "144",
+  "LEON": "145", "LIBERTY": "146", "LIMESTONE": "147", "LIPSCOMB": "148", "LIVE OAK": "149",
+  "LLANO": "150", "LOVING": "151", "LUBBOCK": "152", "LYNN": "153", "MADISON": "154",
+  "MARION": "155", "MARTIN": "156", "MASON": "157", "MATAGORDA": "158", "MAVERICK": "159",
+  "MCCULLOCH": "160", "MCLENNAN": "161", "MCMULLEN": "162", "MEDINA": "163", "MENARD": "164",
+  "MIDLAND": "165", "MILAM": "166", "MILLS": "167", "MITCHELL": "168", "MONTAGUE": "169",
+  "MONTGOMERY": "170", "MOORE": "171", "MORRIS": "172", "MOTLEY": "173", "NACOGDOCHES": "174",
+  "NAVARRO": "175", "NEWTON": "176", "NOLAN": "177", "NUECES": "178", "OCHILTREE": "179",
+  "OLDHAM": "180", "ORANGE": "181", "PALO PINTO": "182", "PANOLA": "183", "PARKER": "184",
+  "PARMER": "185", "PECOS": "186", "POLK": "187", "POTTER": "188", "PRESIDIO": "189",
+  "RAINS": "190", "RANDALL": "191", "REAGAN": "192", "REAL": "193", "RED RIVER": "194",
+  "REEVES": "195", "REFUGIO": "196", "ROBERTS": "197", "ROBERTSON": "198", "ROCKWALL": "199",
+  "RUNNELS": "200", "RUSK": "201", "SABINE": "202", "SAN AUGUSTINE": "203", "SAN JACINTO": "204",
+  "SAN PATRICIO": "205", "SAN SABA": "206", "SCHLEICHER": "207", "SCURRY": "208", "SHACKELFORD": "209",
+  "SHELBY": "210", "SHERMAN": "211", "SMITH": "212", "SOMERVELL": "213", "STARR": "214",
+  "STEPHENS": "215", "STERLING": "216", "STONEWALL": "217", "SUTTON": "218", "SWISHER": "219",
+  "TARRANT": "220", "TAYLOR": "221", "TERRELL": "222", "TERRY": "223", "THROCKMORTON": "224",
+  "TITUS": "225", "TOM GREEN": "226", "TRAVIS": "227", "TRINITY": "228", "TYLER": "229",
+  "UPSHUR": "230", "UPTON": "231", "UVALDE": "232", "VAL VERDE": "233", "VAN ZANDT": "234",
+  "VICTORIA": "235", "WALKER": "236", "WALLER": "237", "WARD": "238", "WASHINGTON": "239",
+  "WEBB": "240", "WHARTON": "241", "WHEELER": "242", "WICHITA": "243", "WILBARGER": "244",
+  "WILLACY": "245", "WILLIAMSON": "246", "WILSON": "247", "WINKLER": "248", "WISE": "249",
+  "WOOD": "250", "YOAKUM": "251", "YOUNG": "252", "ZAPATA": "253", "ZAVALA": "254"
+};
+
 type InteractiveMapProps = {
   locations: LocationSummary[];
   allLocations?: LocationSummary[];
@@ -86,8 +141,9 @@ export function InteractiveMap({
     const style = (feature: any) => {
       const rawCountyName = feature.properties.CNTY_NM || feature.properties.NAME || "";
       const countyNameUpper = rawCountyName.toUpperCase();
-      const isSelected = selectedCounty && countyNameUpper === selectedCounty.toUpperCase();
-      const hasLocations = locationsByCounty.has(countyNameUpper);
+      const countyCode = COUNTY_NAME_TO_CODE[countyNameUpper];
+      const isSelected = selectedCounty && countyCode === selectedCounty;
+      const hasLocations = locationsByCounty.has(countyCode || "");
       
       return {
         fillColor: isSelected ? "#3b82f6" : (hasLocations ? "#10b981" : "#d1d5db"),
@@ -102,7 +158,8 @@ export function InteractiveMap({
     const onEachFeature = (feature: any, layer: L.Layer) => {
       const rawCountyName = feature.properties.CNTY_NM || feature.properties.NAME || "";
       const countyNameUpper = rawCountyName.toUpperCase();
-      const countyLocations = locationsByCounty.get(countyNameUpper) || [];
+      const countyCode = COUNTY_NAME_TO_CODE[countyNameUpper];
+      const countyLocations = locationsByCounty.get(countyCode || "") || [];
 
       // Calculate total sales for county
       const totalSales = countyLocations.reduce((sum, loc) => sum + loc.totalSales, 0);
@@ -148,8 +205,11 @@ export function InteractiveMap({
         },
         click: () => {
           if (onCountyClick) {
-            // Pass uppercase county name for consistent filtering
-            onCountyClick(countyNameUpper);
+            // Convert county name to comptroller code for filtering
+            const countyCode = COUNTY_NAME_TO_CODE[countyNameUpper];
+            if (countyCode) {
+              onCountyClick(countyCode);
+            }
           }
         },
       });

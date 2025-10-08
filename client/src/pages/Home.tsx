@@ -12,6 +12,61 @@ import { Star, AlertCircle, Calendar, Search, MapPin, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
 
+// County code to name mapping for display
+const COUNTY_CODE_TO_NAME: Record<string, string> = {
+  "001": "Anderson", "002": "Andrews", "003": "Angelina", "004": "Aransas", "005": "Archer",
+  "006": "Armstrong", "007": "Atascosa", "008": "Austin", "009": "Bailey", "010": "Bandera",
+  "011": "Bastrop", "012": "Baylor", "013": "Bee", "014": "Bell", "015": "Bexar",
+  "016": "Blanco", "017": "Borden", "018": "Bosque", "019": "Bowie", "020": "Brazoria",
+  "021": "Brazos", "022": "Brewster", "023": "Briscoe", "024": "Brooks", "025": "Brown",
+  "026": "Burleson", "027": "Burnet", "028": "Caldwell", "029": "Calhoun", "030": "Callahan",
+  "031": "Cameron", "032": "Camp", "033": "Carson", "034": "Cass", "035": "Castro",
+  "036": "Chambers", "037": "Cherokee", "038": "Childress", "039": "Clay", "040": "Cochran",
+  "041": "Coke", "042": "Coleman", "043": "Collin", "044": "Collingsworth", "045": "Colorado",
+  "046": "Comal", "047": "Comanche", "048": "Concho", "049": "Cooke", "050": "Coryell",
+  "051": "Cottle", "052": "Crane", "053": "Crockett", "054": "Crosby", "055": "Culberson",
+  "056": "Dallam", "057": "Dallas", "058": "Dawson", "059": "Deaf Smith", "060": "Delta",
+  "061": "Denton", "062": "DeWitt", "063": "Dickens", "064": "Dimmit", "065": "Donley",
+  "066": "Duval", "067": "Eastland", "068": "Ector", "069": "Edwards", "070": "Ellis",
+  "071": "El Paso", "072": "Erath", "073": "Falls", "074": "Fannin", "075": "Fayette",
+  "076": "Fisher", "077": "Floyd", "078": "Foard", "079": "Fort Bend", "080": "Franklin",
+  "081": "Freestone", "082": "Frio", "083": "Gaines", "084": "Galveston", "085": "Garza",
+  "086": "Gillespie", "087": "Glasscock", "088": "Goliad", "089": "Gonzales", "090": "Gray",
+  "091": "Grayson", "092": "Gregg", "093": "Grimes", "094": "Guadalupe", "095": "Hale",
+  "096": "Hall", "097": "Hamilton", "098": "Hansford", "099": "Hardeman", "100": "Hardin",
+  "101": "Harris", "102": "Harrison", "103": "Hartley", "104": "Haskell", "105": "Hays",
+  "106": "Hemphill", "107": "Henderson", "108": "Hidalgo", "109": "Hill", "110": "Hockley",
+  "111": "Hood", "112": "Hopkins", "113": "Houston", "114": "Howard", "115": "Hudspeth",
+  "116": "Hunt", "117": "Hutchinson", "118": "Irion", "119": "Jack", "120": "Jackson",
+  "121": "Jasper", "122": "Jeff Davis", "123": "Jefferson", "124": "Jim Hogg", "125": "Jim Wells",
+  "126": "Johnson", "127": "Jones", "128": "Karnes", "129": "Kaufman", "130": "Kendall",
+  "131": "Kenedy", "132": "Kent", "133": "Kerr", "134": "Kimble", "135": "King",
+  "136": "Kinney", "137": "Kleberg", "138": "Knox", "139": "Lamar", "140": "Lamb",
+  "141": "Lampasas", "142": "La Salle", "143": "Lavaca", "144": "Lee", "145": "Leon",
+  "146": "Liberty", "147": "Limestone", "148": "Lipscomb", "149": "Live Oak", "150": "Llano",
+  "151": "Loving", "152": "Lubbock", "153": "Lynn", "154": "Madison", "155": "Marion",
+  "156": "Martin", "157": "Mason", "158": "Matagorda", "159": "Maverick", "160": "McCulloch",
+  "161": "McLennan", "162": "McMullen", "163": "Medina", "164": "Menard", "165": "Midland",
+  "166": "Milam", "167": "Mills", "168": "Mitchell", "169": "Montague", "170": "Montgomery",
+  "171": "Moore", "172": "Morris", "173": "Motley", "174": "Nacogdoches", "175": "Navarro",
+  "176": "Newton", "177": "Nolan", "178": "Nueces", "179": "Ochiltree", "180": "Oldham",
+  "181": "Orange", "182": "Palo Pinto", "183": "Panola", "184": "Parker", "185": "Parmer",
+  "186": "Pecos", "187": "Polk", "188": "Potter", "189": "Presidio", "190": "Rains",
+  "191": "Randall", "192": "Reagan", "193": "Real", "194": "Red River", "195": "Reeves",
+  "196": "Refugio", "197": "Roberts", "198": "Robertson", "199": "Rockwall", "200": "Runnels",
+  "201": "Rusk", "202": "Sabine", "203": "San Augustine", "204": "San Jacinto", "205": "San Patricio",
+  "206": "San Saba", "207": "Schleicher", "208": "Scurry", "209": "Shackelford", "210": "Shelby",
+  "211": "Sherman", "212": "Smith", "213": "Somervell", "214": "Starr", "215": "Stephens",
+  "216": "Sterling", "217": "Stonewall", "218": "Sutton", "219": "Swisher", "220": "Tarrant",
+  "221": "Taylor", "222": "Terrell", "223": "Terry", "224": "Throckmorton", "225": "Titus",
+  "226": "Tom Green", "227": "Travis", "228": "Trinity", "229": "Tyler", "230": "Upshur",
+  "231": "Upton", "232": "Uvalde", "233": "Val Verde", "234": "Van Zandt", "235": "Victoria",
+  "236": "Walker", "237": "Waller", "238": "Ward", "239": "Washington", "240": "Webb",
+  "241": "Wharton", "242": "Wheeler", "243": "Wichita", "244": "Wilbarger", "245": "Willacy",
+  "246": "Williamson", "247": "Wilson", "248": "Winkler", "249": "Wise", "250": "Wood",
+  "251": "Yoakum", "252": "Young", "253": "Zapata", "254": "Zavala"
+};
+
 export default function Home() {
   const [selectedYear, setSelectedYear] = useState<string>("2024");
   const [selectedLocation, setSelectedLocation] = useState<LocationSummary | null>(null);
@@ -52,10 +107,10 @@ export default function Home() {
     
     let filtered = locations;
 
-    // Filter by selected county
+    // Filter by selected county (selectedCounty is now a code like "101")
     if (selectedCounty) {
       filtered = filtered.filter(
-        (loc) => loc.locationCounty.toUpperCase() === selectedCounty.toUpperCase()
+        (loc) => loc.locationCounty === selectedCounty
       );
     }
 
@@ -149,7 +204,7 @@ export default function Home() {
               <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-md">
                 <MapPin className="h-4 w-4" />
                 <span className="text-sm font-medium flex-1">
-                  Filtered: {selectedCounty} County
+                  Filtered: {COUNTY_CODE_TO_NAME[selectedCounty] || selectedCounty} County
                 </span>
                 <Button
                   variant="ghost"
@@ -169,7 +224,7 @@ export default function Home() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {selectedCounty ? `${selectedCounty} County` : "Total Sales"} {selectedYear !== "all" ? `(${selectedYear})` : "(All Time)"}
+                {selectedCounty ? `${COUNTY_CODE_TO_NAME[selectedCounty] || selectedCounty} County` : "Total Sales"} {selectedYear !== "all" ? `(${selectedYear})` : "(All Time)"}
               </CardTitle>
             </CardHeader>
             <CardContent>
