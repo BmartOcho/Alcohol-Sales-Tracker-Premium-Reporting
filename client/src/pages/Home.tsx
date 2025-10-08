@@ -89,18 +89,36 @@ export default function Home() {
   const { data: locations, isLoading, error } = useQuery<LocationSummary[]>({
     queryKey: ["/api/locations", dateRange.startDate, dateRange.endDate],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (dateRange.startDate && dateRange.endDate) {
-        params.append('startDate', dateRange.startDate);
-        params.append('endDate', dateRange.endDate);
+      const allLocations: LocationSummary[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const params = new URLSearchParams();
+        if (dateRange.startDate && dateRange.endDate) {
+          params.append('startDate', dateRange.startDate);
+          params.append('endDate', dateRange.endDate);
+        }
+        params.append('page', page.toString());
+        params.append('limit', '1000');
+        
+        const url = `/api/locations?${params.toString()}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `Server error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        allLocations.push(...data.locations);
+        hasMore = data.pagination.hasMore;
+        page++;
+        
+        console.log(`Fetched page ${data.pagination.page}: ${data.locations.length} locations (${allLocations.length}/${data.pagination.total} total)`);
       }
-      const url = `/api/locations${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Server error: ${response.status}`);
-      }
-      return response.json();
+      
+      return allLocations;
     },
     retry: 2,
     staleTime: 1000 * 60 * 5, // 5 minutes
