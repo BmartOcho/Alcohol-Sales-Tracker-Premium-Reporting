@@ -131,12 +131,18 @@ export async function fetchAllTexasAlcoholData(
 
       const coords = geocodeAddress(locationCity);
 
+      // Normalize county code to 3 digits with leading zeros (e.g., "57" -> "057")
+      const rawCounty = record.location_county || record.taxpayer_county || "Unknown";
+      const normalizedCounty = rawCounty !== "Unknown" && /^\d+$/.test(rawCounty)
+        ? rawCounty.padStart(3, '0')
+        : rawCounty;
+
       const monthlyRecord: MonthlySalesRecord = {
         permitNumber,
         locationName,
         locationAddress: record.location_address || record.taxpayer_address || "Unknown",
         locationCity,
-        locationCounty: record.location_county || record.taxpayer_county || "Unknown",
+        locationCounty: normalizedCounty,
         locationZip: record.location_zip || record.taxpayer_zip || "",
         taxpayerName: record.taxpayer_name || locationName,
         obligationEndDate: record.obligation_end_date_yyyymmdd || "",
@@ -156,7 +162,7 @@ export async function fetchAllTexasAlcoholData(
             name: locationName,
             address: record.location_address || record.taxpayer_address || "Unknown",
             city: locationCity,
-            county: record.location_county || record.taxpayer_county || "Unknown",
+            county: normalizedCounty,
             zip: record.location_zip || record.taxpayer_zip || "",
             taxpayerName: record.taxpayer_name || locationName,
           },

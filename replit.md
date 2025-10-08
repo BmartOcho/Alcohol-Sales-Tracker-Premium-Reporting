@@ -8,7 +8,12 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 
 ## Recent Changes
 
-### October 8, 2025 (Latest - Hybrid Map Visualization)
+### October 8, 2025 (Latest - County Code Normalization Fix)
+- **County Code Leading Zero Fix**: Fixed missing data for counties with codes < 100
+  - **Root Cause**: Texas API returns county codes without leading zeros ("57", "4") while lookup tables use 3-digit codes ("057", "004")
+  - **Solution**: Added `.padStart(3, '0')` normalization in texasDataService.ts to standardize all county codes
+  - **Impact**: Dallas County (057) now shows 1,754 locations, Aransas County (004) shows 60 locations - previously showed 0
+  - **Result**: All 254 Texas counties now display data correctly regardless of code format
 - **Hybrid Map Approach**: Combines individual location markers with interactive county overlay
   - **Primary Layer**: 21,000+ location markers (CircleMarker) colored by dominant category
     - Purple: liquor-dominant, Red: wine-dominant, Amber: beer-dominant
@@ -19,7 +24,10 @@ An interactive web application for visualizing Texas alcohol sales data by categ
     - Low opacity (0.05-0.3) to not obscure underlying markers
     - Hover → tooltip shows county name, location count, total sales (always shows full data)
     - Click → filters sidebar to show only locations in that county
-  - **Case-Normalized Filtering**: All county comparisons use uppercase for consistent matching
+  - **County Code Lookup System**: Two-way mapping between county names and codes
+    - COUNTY_NAME_TO_CODE: Converts GeoJSON county names → Texas Comptroller codes for filtering
+    - COUNTY_CODE_TO_NAME: Converts codes → names for user-friendly display
+    - All codes normalized to 3 digits (001-254) for consistent matching
   - **Dual-Data Architecture**: InteractiveMap receives both filtered and unfiltered location data
     - `locations` prop: filtered locations for marker rendering (respects sidebar filters)
     - `allLocations` prop: unfiltered locations for county tooltip aggregation
