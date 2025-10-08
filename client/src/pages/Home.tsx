@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { InteractiveMap, type MapMarker } from "@/components/InteractiveMap";
 import { EstablishmentCard } from "@/components/EstablishmentCard";
@@ -30,10 +30,16 @@ export default function Home() {
   const [selectedCategories, setSelectedCategories] = useState<Category[]>(["liquor", "wine", "beer"]);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [maxDisplayedLocations, setMaxDisplayedLocations] = useState(500);
 
   const { data: locations, isLoading, error } = useQuery<LocationSummary[]>({
     queryKey: ["/api/locations"],
   });
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setMaxDisplayedLocations(500);
+  }, [searchQuery, selectedCategories.join(','), selectedMonth, locations?.length]);
 
   const handleCategoryToggle = (category: Category) => {
     setSelectedCategories((prev) =>
@@ -100,8 +106,12 @@ export default function Home() {
       });
   }, [locations, searchQuery, selectedCategories, selectedMonth]);
 
+  const displayedLocations = useMemo(() => {
+    return filteredLocations.slice(0, maxDisplayedLocations);
+  }, [filteredLocations, maxDisplayedLocations]);
+
   const mapMarkers: MapMarker[] = useMemo(() => {
-    return filteredLocations.map((loc) => {
+    return displayedLocations.map((loc) => {
       const primaryCategory = 
         loc.liquorSales >= loc.wineSales && loc.liquorSales >= loc.beerSales
           ? "liquor"
@@ -118,7 +128,7 @@ export default function Home() {
         sales: loc.totalSales,
       };
     });
-  }, [filteredLocations]);
+  }, [displayedLocations]);
 
   const chartData = useMemo(() => {
     if (!filteredLocations.length) return [];
@@ -197,6 +207,9 @@ export default function Home() {
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     {filteredLocations.length} locations
+                    {filteredLocations.length > maxDisplayedLocations && (
+                      <> (showing top {maxDisplayedLocations})</>
+                    )}
                   </p>
                 </>
               )}
@@ -231,7 +244,7 @@ export default function Home() {
               </>
             )}
 
-            {!isLoading && !error && filteredLocations.map((loc) => (
+            {!isLoading && !error && displayedLocations.map((loc) => (
               <div
                 key={loc.permitNumber}
                 onClick={() => setSelectedLocation(loc.permitNumber)}
@@ -249,8 +262,20 @@ export default function Home() {
                 />
               </div>
             ))}
+            
+            {!isLoading && !error && filteredLocations.length > maxDisplayedLocations && (
+              <div className="text-center py-4">
+                <button
+                  onClick={() => setMaxDisplayedLocations(prev => prev + 500)}
+                  className="text-sm text-primary hover:underline"
+                  data-testid="button-load-more"
+                >
+                  Load more ({filteredLocations.length - maxDisplayedLocations} remaining)
+                </button>
+              </div>
+            )}
 
-            {!isLoading && !error && filteredLocations.length === 0 && (
+            {!isLoading && !error && displayedLocations.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 No locations found. Try adjusting your filters.
               </div>
