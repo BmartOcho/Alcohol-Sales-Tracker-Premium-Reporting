@@ -8,12 +8,18 @@ import { ArrowLeft, FileText, BarChart3, TrendingUp } from "lucide-react";
 import { PermitReport } from "@/components/reports/PermitReport";
 import { PermitComparison } from "@/components/reports/PermitComparison";
 import { HotSpotTimeline } from "@/components/reports/HotSpotTimeline";
+import { SEO } from "@/components/SEO";
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState("location");
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Sales Reports & Analytics - Texas Alcohol Sales Map"
+        description="Detailed alcohol sales reports and analytics for Texas establishments. Compare locations, analyze permit-level data, and track county consumption trends over time."
+        type="website"
+      />
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">

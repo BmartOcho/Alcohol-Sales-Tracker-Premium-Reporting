@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BarChart3, MapPin, TrendingUp, LineChart } from "lucide-react";
+import { SEO } from "@/components/SEO";
+import { StructuredData } from "@/components/StructuredData";
 
 export default function Landing() {
   const handleLogin = () => {
@@ -10,6 +12,40 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Texas Alcohol Sales Map - Interactive Sales Data & Analytics"
+        description="Explore Texas alcohol sales data with interactive maps and analytics. Track 22,000+ locations, analyze sales trends, and discover market opportunities across all 254 Texas counties."
+        type="website"
+      />
+      <StructuredData
+        type="WebApplication"
+        data={{
+          name: "Texas Alcohol Sales Map",
+          description: "Interactive mapping and analytics platform for Texas alcohol sales data",
+          applicationCategory: "BusinessApplication",
+          offers: {
+            "@type": "Offer",
+            price: "20.00",
+            priceCurrency: "USD",
+            priceSpecification: {
+              "@type": "UnitPriceSpecification",
+              price: "20.00",
+              priceCurrency: "USD",
+              referenceQuantity: {
+                "@type": "QuantitativeValue",
+                value: "1",
+                unitCode: "MON"
+              }
+            }
+          },
+          featureList: [
+            "Interactive map with 22,000+ Texas locations",
+            "Detailed sales analytics and reports",
+            "County-level consumption trends",
+            "Historical data from 2015-2025"
+          ]
+        }}
+      />
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">

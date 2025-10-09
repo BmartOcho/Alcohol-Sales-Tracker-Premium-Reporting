@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
+import { SEO } from "@/components/SEO";
 
 // County code to name mapping for display
 const COUNTY_CODE_TO_NAME: Record<string, string> = {
@@ -199,6 +200,11 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
+      <SEO
+        title="Texas Alcohol Sales Map - Explore Sales Data by Location"
+        description="Interactive map showing alcohol sales data for 22,000+ Texas establishments. Filter by year, search locations, and analyze sales trends across all 254 counties."
+        type="website"
+      />
       {/* Sidebar */}
       <div className="w-96 border-r bg-card flex flex-col h-full">
         <div className="p-4 border-b space-y-4">

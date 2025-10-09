@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
+import { SEO } from "@/components/SEO";
 
 // Initialize Stripe
 if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
@@ -118,6 +119,11 @@ export default function Subscribe() {
 
   return (
     <div className="min-h-screen bg-background p-4">
+      <SEO
+        title="Subscribe - Texas Alcohol Sales Map Pro"
+        description="Upgrade to Pro for $20/month. Get unlimited access to interactive maps, detailed analytics, location reports, and county insights for Texas alcohol sales data."
+        type="website"
+      />
       <div className="max-w-4xl mx-auto py-8 space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold">Upgrade to Pro</h1>
