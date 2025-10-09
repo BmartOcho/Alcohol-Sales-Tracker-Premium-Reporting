@@ -335,7 +335,7 @@ export function PermitReport() {
                     frameBorder="0"
                     style={{ border: 0 }}
                     referrerPolicy="no-referrer-when-downgrade"
-                    src={`https://maps.google.com/maps?q=${locationData.lat},${locationData.lng}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent(locationData.locationAddress + ', ' + locationData.locationCity + ', TX ' + locationData.locationZip)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                     allowFullScreen
                     loading="lazy"
                     title="Location Map"
@@ -343,7 +343,7 @@ export function PermitReport() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground text-center mt-2">
-                  {locationData.lat.toFixed(6)}, {locationData.lng.toFixed(6)}
+                  {locationData.locationAddress}, {locationData.locationCity}, TX {locationData.locationZip}
                 </p>
               </CardContent>
             </Card>
