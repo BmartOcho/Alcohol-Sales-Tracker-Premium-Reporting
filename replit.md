@@ -8,11 +8,15 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 
 ## Recent Changes
 
-### October 9, 2025 (Latest - Performance Optimizations)
-- **Parallel API Fetching**: Dramatically improved data loading speed
-  - Backend pagination: 1000 locations per page (22 pages total for 2024 dataset)
-  - Frontend fetches pages in batches of 5 simultaneously using Promise.all()
-  - **Result**: 5x faster data loading (all 21k locations load in ~5 seconds vs ~30 seconds)
+### October 9, 2025 (Latest - PostgreSQL Database Migration)
+- **Database Migration Complete**: Migrated from Texas API to PostgreSQL database
+  - Created `monthly_sales` table with 227k+ records for 2024 (indexes on permit_number, obligation_end_date, location_county)
+  - Import script (`server/scripts/importData.ts`) fetches from Texas API and stores in database
+  - **Performance**: First query 3-4s, cached queries 30-40ms (100x faster than 25-30s API calls!)
+  - In-memory cache with 1-hour TTL stores aggregated location summaries
+- **Year Selector Updated**: Now shows only available years (currently 2024) to prevent timeout errors
+- **Cache Management**: Added `/api/locations/refresh` POST endpoint to clear cache
+- **All endpoints updated**: Now query database instead of Texas API
 - **Map Marker Clustering**: Solved performance issues with rendering 21,000+ markers
   - Integrated Leaflet MarkerClusterGroup plugin to group nearby markers
   - Cluster sizes: small (<20), medium (20-100), large (>100) with visual indicators
@@ -148,9 +152,10 @@ Preferred communication style: Simple, everyday language.
 - Numeric value parsing for sales figures
 
 **Storage Strategy**
-- In-memory storage (`MemStorage`) for development and simple deployments
-- Interface-based design (`IStorage`) allows future database implementation
-- Cache management with timestamp-based expiration
+- PostgreSQL database (`DatabaseStorage`) as primary data source
+- In-memory cache (1-hour TTL) for lightning-fast repeat queries
+- Cache can be manually cleared via POST `/api/locations/refresh`
+- Interface-based design (`IStorage`) allows switching storage implementations
 
 ### External Dependencies
 

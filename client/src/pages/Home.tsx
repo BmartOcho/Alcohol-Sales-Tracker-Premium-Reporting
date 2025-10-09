@@ -75,10 +75,10 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 100;
 
+  // Available years in database (only 2024 currently imported)
+  const availableYears = ["2024"];
+
   const dateRange = useMemo(() => {
-    if (selectedYear === "all") {
-      return { startDate: undefined, endDate: undefined };
-    }
     const year = parseInt(selectedYear);
     return {
       startDate: `${year}-01-01T00:00:00.000`,
@@ -211,23 +211,17 @@ export default function Home() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <Select value={selectedYear} onValueChange={(value) => {
+                setSelectedYear(value);
+                setCurrentPage(1);
+              }}>
                 <SelectTrigger className="flex-1" data-testid="select-year">
                   <SelectValue placeholder="Select year" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Years</SelectItem>
-                  <SelectItem value="2025">2025</SelectItem>
-                  <SelectItem value="2024">2024</SelectItem>
-                  <SelectItem value="2023">2023</SelectItem>
-                  <SelectItem value="2022">2022</SelectItem>
-                  <SelectItem value="2021">2021</SelectItem>
-                  <SelectItem value="2020">2020</SelectItem>
-                  <SelectItem value="2019">2019</SelectItem>
-                  <SelectItem value="2018">2018</SelectItem>
-                  <SelectItem value="2017">2017</SelectItem>
-                  <SelectItem value="2016">2016</SelectItem>
-                  <SelectItem value="2015">2015</SelectItem>
+                  {availableYears.map(year => (
+                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

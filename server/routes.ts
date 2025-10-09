@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { fetchAllTexasAlcoholData } from "./services/texasDataService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/locations", async (req, res) => {
@@ -11,18 +10,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 1000;
       
-      // Create cache key based on date range
-      const cacheKey = startDate && endDate ? `${startDate}_${endDate}` : 'default';
-      let locations = storage.getCachedLocations(cacheKey);
+      console.log(`Fetching locations from database - Date range: ${startDate || 'all'} to ${endDate || 'all'}`);
       
-      if (!locations) {
-        console.log(`Cache miss for ${cacheKey} - fetching fresh data from Texas API...`);
-        // Fetch ALL records for the date range (no maxRecords limit when dates provided)
-        locations = await fetchAllTexasAlcoholData(Infinity, startDate, endDate);
-        storage.setCachedLocations(locations, cacheKey);
-      } else {
-        console.log(`Cache hit for ${cacheKey} - ${locations.length} locations in cache`);
-      }
+      // Query database directly (much faster than API)
+      const locations = await storage.getLocations(startDate, endDate);
+      
+      console.log(`Found ${locations.length} locations in database`);
 
       // Paginate the results
       const startIndex = (page - 1) * limit;
@@ -42,33 +35,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
-      console.error("Error fetching locations - Full error:", error);
+      console.error("Error fetching locations from database:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      const errorStack = error instanceof Error ? error.stack : "";
-      console.error("Error stack:", errorStack);
       
       res.status(500).json({ 
         error: "Failed to fetch location data",
-        message: `${errorMessage}. This may indicate network restrictions preventing access to data.texas.gov from published apps. Try running in development mode.`
+        message: `${errorMessage}. Make sure the database has been populated with data.`
       });
     }
   });
 
-  app.get("/api/locations/refresh", async (req, res) => {
+  app.post("/api/locations/refresh", async (req, res) => {
     try {
-      console.log("Manual refresh requested...");
-      const startDate = req.query.startDate as string;
-      const endDate = req.query.endDate as string;
-      const cacheKey = startDate && endDate ? `${startDate}_${endDate}` : 'default';
+      console.log("Manual cache refresh requested...");
       
-      // Fetch ALL records for the date range
-      const locations = await fetchAllTexasAlcoholData(Infinity, startDate, endDate);
-      storage.setCachedLocations(locations, cacheKey);
-      res.json({ success: true, count: locations.length });
+      // Clear the in-memory cache to force fresh database queries
+      storage.clearCache();
+      
+      res.json({ 
+        success: true, 
+        message: "Cache cleared successfully. Next request will fetch fresh data from database." 
+      });
     } catch (error) {
-      console.error("Error refreshing locations:", error);
+      console.error("Error clearing cache:", error);
       res.status(500).json({ 
-        error: "Failed to refresh location data",
+        error: "Failed to clear cache",
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }
@@ -78,15 +69,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
-      const cacheKey = startDate && endDate ? `${startDate}_${endDate}` : 'default';
       
-      let locations = storage.getCachedLocations(cacheKey);
-      
-      if (!locations) {
-        console.log(`Cache miss for ${cacheKey} - fetching fresh data from Texas API...`);
-        locations = await fetchAllTexasAlcoholData(Infinity, startDate, endDate);
-        storage.setCachedLocations(locations, cacheKey);
-      }
+      // Query database for all locations (uses cache)
+      const locations = await storage.getLocations(startDate, endDate);
 
       // Aggregate by county
       const countyMap = new Map<string, any>();
@@ -129,13 +114,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
-      const cacheKey = startDate && endDate ? `${startDate}_${endDate}` : 'default';
       
-      const locations = storage.getCachedLocations(cacheKey);
-      if (!locations) {
-        return res.status(503).json({ error: "Data not loaded yet" });
-      }
-
+      // Query database for all locations (uses cache)
+      const locations = await storage.getLocations(startDate, endDate);
+      
       const location = locations.find(l => l.permitNumber === req.params.permitNumber);
       if (!location) {
         return res.status(404).json({ error: "Location not found" });
