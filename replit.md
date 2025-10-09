@@ -4,13 +4,14 @@
 
 An interactive web application for visualizing Texas alcohol sales data by category and location. The application displays establishment-level sales information for liquor, wine, and beer on an interactive map interface, with filtering, search, and data visualization capabilities. Built with a focus on data clarity and professional presentation, inspired by modern analytics dashboards like Zillow's clean map interface.
 
-**Status**: Fully functional with live Texas Open Data Portal integration (October 2025)
+**Status**: Fully functional with complete database coverage (2015-2025) - Production ready (October 2025)
 
 ## Recent Changes
 
 ### October 9, 2025 (Latest - Fully Database-Backed Architecture)
 - **All Data in PostgreSQL**: All years (2015-2025) stored in database for instant access
-  - **Database Storage**: 1.8M+ monthly sales records across all years
+  - **Database Storage**: 1.8M+ monthly sales records across all years (1,811,938 records)
+  - **Complete Coverage**: 2015 (165k), 2016 (171k), 2017 (175k), 2018 (181k), 2019 (187k), 2020 (161k), 2021 (189k), 2022 (204k), 2023 (193k), 2024 (228k), 2025 (158k)
   - **SQL Optimization**: GROUP BY aggregation for location summaries (3-4s first load, 20-40ms cached)
   - **Import Script**: Supports single years or ranges: `tsx server/scripts/importData.ts 2025` or `tsx server/scripts/importData.ts 2015 2024`
   - **Performance**: 100x faster than API approach, consistent across all years
@@ -22,6 +23,9 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 - **Year Selector**: Shows all available years (2015-2025)
   - Default: 2025 (most recent year)
   - All years load consistently from database (3-4s first, <50ms cached)
+- **Smart Sorting**: Locations always sorted by highest sales first (descending order)
+  - Applies to county filters, search results, and all views
+  - Array cloning prevents React Query cache mutation
 - **Data Updates**: Run import script monthly when TABC publishes new data
 - **Cache Management**: POST `/api/locations/refresh` endpoint clears all caches
 - **All features work across all years**: search, filtering, county selection, location details
