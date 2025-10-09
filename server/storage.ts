@@ -6,6 +6,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getLocations(startDate?: string, endDate?: string): Promise<LocationSummary[]>;
+  getLocationByPermit(permitNumber: string): Promise<LocationSummary | null>;
   getCachedLocations(cacheKey?: string): LocationSummary[] | null;
   setCachedLocations(locations: LocationSummary[], cacheKey?: string): void;
   clearCache(): void;
@@ -45,6 +46,11 @@ export class MemStorage implements IStorage {
       return cache.data;
     }
     return [];
+  }
+
+  async getLocationByPermit(permitNumber: string): Promise<LocationSummary | null> {
+    // MemStorage doesn't have data, return null
+    return null;
   }
 
   getCachedLocations(cacheKey: string = 'default'): LocationSummary[] | null {
@@ -217,6 +223,90 @@ export class DatabaseStorage implements IStorage {
 
     console.log(`Cached ${locations.length} locations for key: ${cacheKey}`);
     return locations;
+  }
+
+  async getLocationByPermit(permitNumber: string): Promise<LocationSummary | null> {
+    console.log(`Querying database for permit: ${permitNumber}`);
+    
+    // Step 1: Aggregate sales for this specific permit
+    const [aggregated] = await db
+      .select({
+        permitNumber: monthlySales.permitNumber,
+        locationName: monthlySales.locationName,
+        locationAddress: monthlySales.locationAddress,
+        locationCity: monthlySales.locationCity,
+        locationCounty: monthlySales.locationCounty,
+        locationZip: monthlySales.locationZip,
+        lat: monthlySales.lat,
+        lng: monthlySales.lng,
+        totalSales: sql<string>`SUM(${monthlySales.totalReceipts})::text`,
+        liquorSales: sql<string>`SUM(${monthlySales.liquorReceipts})::text`,
+        wineSales: sql<string>`SUM(${monthlySales.wineReceipts})::text`,
+        beerSales: sql<string>`SUM(${monthlySales.beerReceipts})::text`,
+        latestMonth: sql<string>`MAX(${monthlySales.obligationEndDate})::text`,
+      })
+      .from(monthlySales)
+      .where(eq(monthlySales.permitNumber, permitNumber))
+      .groupBy(
+        monthlySales.permitNumber,
+        monthlySales.locationName,
+        monthlySales.locationAddress,
+        monthlySales.locationCity,
+        monthlySales.locationCounty,
+        monthlySales.locationZip,
+        monthlySales.lat,
+        monthlySales.lng
+      );
+
+    if (!aggregated) {
+      console.log(`No data found for permit: ${permitNumber}`);
+      return null;
+    }
+
+    // Step 2: Get all monthly records for this permit
+    const monthlyRecords = await db
+      .select()
+      .from(monthlySales)
+      .where(eq(monthlySales.permitNumber, permitNumber))
+      .orderBy(desc(monthlySales.obligationEndDate));
+
+    const monthlyRecordsData: MonthlySalesRecord[] = monthlyRecords.map(record => ({
+      permitNumber: record.permitNumber,
+      locationName: record.locationName,
+      locationAddress: record.locationAddress,
+      locationCity: record.locationCity,
+      locationCounty: record.locationCounty,
+      locationZip: record.locationZip,
+      taxpayerName: record.taxpayerName,
+      obligationEndDate: record.obligationEndDate.toISOString(),
+      liquorReceipts: parseFloat(record.liquorReceipts),
+      wineReceipts: parseFloat(record.wineReceipts),
+      beerReceipts: parseFloat(record.beerReceipts),
+      coverChargeReceipts: parseFloat(record.coverChargeReceipts),
+      totalReceipts: parseFloat(record.totalReceipts),
+      lat: parseFloat(record.lat),
+      lng: parseFloat(record.lng),
+    }));
+
+    const location: LocationSummary = {
+      permitNumber: aggregated.permitNumber,
+      locationName: aggregated.locationName,
+      locationAddress: aggregated.locationAddress,
+      locationCity: aggregated.locationCity,
+      locationCounty: aggregated.locationCounty,
+      locationZip: aggregated.locationZip,
+      lat: parseFloat(aggregated.lat),
+      lng: parseFloat(aggregated.lng),
+      totalSales: parseFloat(aggregated.totalSales),
+      liquorSales: parseFloat(aggregated.liquorSales),
+      wineSales: parseFloat(aggregated.wineSales),
+      beerSales: parseFloat(aggregated.beerSales),
+      latestMonth: aggregated.latestMonth,
+      monthlyRecords: monthlyRecordsData,
+    };
+
+    console.log(`Found location for permit ${permitNumber}: ${location.locationName}`);
+    return location;
   }
 
   getCachedLocations(cacheKey?: string): LocationSummary[] | null {

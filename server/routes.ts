@@ -112,13 +112,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/locations/:permitNumber", async (req, res) => {
     try {
-      const startDate = req.query.startDate as string;
-      const endDate = req.query.endDate as string;
+      const permitNumber = req.params.permitNumber;
       
-      // Query database for all locations (uses cache)
-      const locations = await storage.getLocations(startDate, endDate);
+      // Use dedicated method to query single permit (efficient, no OOM risk)
+      const location = await storage.getLocationByPermit(permitNumber);
       
-      const location = locations.find(l => l.permitNumber === req.params.permitNumber);
       if (!location) {
         return res.status(404).json({ error: "Location not found" });
       }

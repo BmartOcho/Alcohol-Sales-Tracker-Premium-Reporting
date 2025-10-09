@@ -58,7 +58,7 @@ export function HotSpotTimeline() {
         let allLocations: LocationSummary[] = [...firstData.locations];
         
         // Fetch remaining pages
-        const totalPages = firstData.pagination.pages;
+        const totalPages = firstData.pagination.totalPages || 0;
         if (totalPages > 1) {
           const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
           const batchSize = 5;
@@ -85,6 +85,7 @@ export function HotSpotTimeline() {
 
         // Aggregate by county
         selectedCounties.forEach(countyCode => {
+          // Database stores county codes, not names - filter by code
           const countyLocations = allLocations.filter(loc => loc.locationCounty === countyCode);
           if (countyLocations.length > 0) {
             trends.push({
