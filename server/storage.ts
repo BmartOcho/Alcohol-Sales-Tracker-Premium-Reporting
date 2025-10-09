@@ -1,10 +1,11 @@
-import { type User, type InsertUser, type LocationSummary, type MonthlySalesRecord } from "@shared/schema";
+import { type User, type UpsertUser, type LocationSummary, type MonthlySalesRecord } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
+  // User operations (Required for Replit Auth - from blueprint:javascript_log_in_with_replit)
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  // Location operations
   getLocations(startDate?: string, endDate?: string): Promise<LocationSummary[]>;
   getLocationByPermit(permitNumber: string): Promise<LocationSummary | null>;
   getLocationsByName(locationName: string): Promise<LocationSummary[]>;
@@ -26,15 +27,24 @@ export class MemStorage implements IStorage {
     return this.users.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const id = userData.id || randomUUID();
+    const now = new Date();
+    const user: User = {
+      ...userData,
+      id,
+      email: userData.email || null,
+      firstName: userData.firstName || null,
+      lastName: userData.lastName || null,
+      profileImageUrl: userData.profileImageUrl || null,
+      subscriptionStatus: userData.subscriptionStatus || 'free',
+      subscriptionTier: userData.subscriptionTier || 'free',
+      stripeCustomerId: userData.stripeCustomerId || null,
+      stripeSubscriptionId: userData.stripeSubscriptionId || null,
+      subscriptionEndsAt: userData.subscriptionEndsAt || null,
+      createdAt: this.users.get(id)?.createdAt || now,
+      updatedAt: now,
+    };
     this.users.set(id, user);
     return user;
   }
@@ -89,20 +99,23 @@ export class DatabaseStorage implements IStorage {
   private locationCache: Map<string, { data: LocationSummary[], timestamp: number }> = new Map();
   private readonly CACHE_TTL = 1000 * 60 * 60; // 1 hour cache for all database queries
 
+  // User operations (Required for Replit Auth - from blueprint:javascript_log_in_with_replit)
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
-      .values(insertUser)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
       .returning();
     return user;
   }
