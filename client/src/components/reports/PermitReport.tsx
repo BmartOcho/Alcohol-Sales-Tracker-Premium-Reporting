@@ -43,6 +43,7 @@ export function PermitReport() {
 
   const handleSelectLocation = (permitNumber: string) => {
     setSelectedPermit(permitNumber);
+    setSelectedYear("all"); // Reset year filter when selecting new location
   };
 
   // Helper to extract year from both ISO and YYYYMMDD formats
@@ -72,20 +73,38 @@ export function PermitReport() {
     ? Array.from(new Set(locationData.monthlyRecords.map(r => getRecordYear(r.obligationEndDate)))).sort().reverse()
     : [];
 
+  // Calculate totals based on filtered records (must be before calculatePeriodMetrics)
+  const calculateTotals = () => {
+    if (!filteredRecords.length) return { total: 0, liquor: 0, wine: 0, beer: 0 };
+    
+    return filteredRecords.reduce((acc, record) => ({
+      total: acc.total + record.totalReceipts,
+      liquor: acc.liquor + record.liquorReceipts,
+      wine: acc.wine + record.wineReceipts,
+      beer: acc.beer + record.beerReceipts,
+    }), { total: 0, liquor: 0, wine: 0, beer: 0 });
+  };
+
+  const totals = calculateTotals();
+
   // Calculate time period metrics
   const calculatePeriodMetrics = () => {
     if (!locationData?.monthlyRecords || locationData.monthlyRecords.length === 0) return null;
 
     const records = selectedYear === "all" ? locationData.monthlyRecords : filteredRecords;
-    const latestRecordDate = new Date(locationData.latestMonth);
+    if (records.length === 0) return null;
+    
+    // Find the latest record date from filtered data
+    const latestFilteredRecord = records[0]; // Records are sorted by date desc
+    const latestRecordDate = new Date(latestFilteredRecord.obligationEndDate);
     const now = new Date();
     
     // Check if location is inactive (latest record > 6 months old)
     const monthsSinceLastRecord = (now.getTime() - latestRecordDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
     const isInactive = monthsSinceLastRecord > 6;
     
-    // Use latest record date as reference for inactive locations
-    const referenceDate = isInactive ? latestRecordDate : now;
+    // Use latest record date from filtered data as reference
+    const referenceDate = isInactive ? latestRecordDate : (selectedYear !== "all" ? latestRecordDate : now);
 
     // Helper to get sales for date range
     const getSalesForPeriod = (monthsAgo: number) => {
@@ -131,9 +150,9 @@ export function PermitReport() {
       pastYear: { value: pastYear.total, change: yearChange },
       past2Years: { value: past2Years.total },
       breakdown: {
-        liquor: locationData.liquorSales,
-        wine: locationData.wineSales,
-        beer: locationData.beerSales,
+        liquor: totals.liquor,
+        wine: totals.wine,
+        beer: totals.beer,
       },
       isInactive,
       latestRecordDate: latestRecordDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -141,20 +160,6 @@ export function PermitReport() {
   };
 
   const metrics = calculatePeriodMetrics();
-
-  // Calculate totals based on filtered records
-  const calculateTotals = () => {
-    if (!filteredRecords.length) return { total: 0, liquor: 0, wine: 0, beer: 0 };
-    
-    return filteredRecords.reduce((acc, record) => ({
-      total: acc.total + record.totalReceipts,
-      liquor: acc.liquor + record.liquorReceipts,
-      wine: acc.wine + record.wineReceipts,
-      beer: acc.beer + record.beerReceipts,
-    }), { total: 0, liquor: 0, wine: 0, beer: 0 });
-  };
-
-  const totals = calculateTotals();
 
   // Prepare revenue mix data based on filtered data
   const revenueData = locationData ? [
@@ -386,20 +391,24 @@ export function PermitReport() {
                   <p className="text-muted-foreground">{locationData.locationCity}, TX {locationData.locationZip}</p>
                 </div>
 
-                {/* Embedded Google Map */}
-                <div className="w-full h-48 bg-muted rounded-lg overflow-hidden" data-testid="container-google-map">
-                  <iframe
-                    width="100%"
-                    height="100%"
-                    frameBorder="0"
-                    style={{ border: 0 }}
-                    referrerPolicy="no-referrer-when-downgrade"
-                    src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}&q=${encodeURIComponent(locationData.locationAddress + ', ' + locationData.locationCity + ', TX ' + locationData.locationZip)}&zoom=15`}
-                    allowFullScreen
-                    loading="lazy"
-                    title="Location Map"
-                    data-testid="iframe-google-map"
-                  />
+                {/* Embedded Map - Fallback to static map */}
+                <div className="w-full h-48 bg-muted rounded-lg overflow-hidden flex items-center justify-center" data-testid="container-map">
+                  <div className="text-center p-4">
+                    <p className="text-sm font-medium mb-2">
+                      {locationData.locationAddress}
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {locationData.locationCity}, TX {locationData.locationZip}
+                    </p>
+                    <a 
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationData.locationAddress + ', ' + locationData.locationCity + ', TX ' + locationData.locationZip)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      View on Google Maps →
+                    </a>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground text-center mt-2">
                   {locationData.locationAddress}, {locationData.locationCity}, TX {locationData.locationZip}
