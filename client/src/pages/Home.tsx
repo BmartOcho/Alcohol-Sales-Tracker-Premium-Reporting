@@ -452,9 +452,16 @@ export default function Home() {
         <div className="flex-1 relative">
           {isLoading ? (
             <div className="w-full h-full bg-muted flex items-center justify-center">
-              <div className="text-center">
-                <Skeleton className="h-8 w-48 mx-auto mb-2" />
-                <Skeleton className="h-4 w-64 mx-auto" />
+              <div className="text-center space-y-4">
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                </div>
+                <div>
+                  <p className="text-lg font-medium">Loading Texas Alcohol Sales Data</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Fetching {selectedYear} sales data for 22,000+ locations...
+                  </p>
+                </div>
               </div>
             </div>
           ) : (
