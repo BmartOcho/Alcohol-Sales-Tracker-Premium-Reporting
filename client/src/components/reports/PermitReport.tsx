@@ -327,14 +327,24 @@ export function PermitReport() {
                   <p className="text-muted-foreground">{locationData.locationCity}, TX {locationData.locationZip}</p>
                 </div>
 
-                {/* Map placeholder - coordinates display */}
-                <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="text-sm font-medium mb-2">Location Coordinates</p>
-                    <p className="text-xs text-muted-foreground">Lat: {locationData.lat.toFixed(6)}</p>
-                    <p className="text-xs text-muted-foreground">Lng: {locationData.lng.toFixed(6)}</p>
-                  </div>
+                {/* Embedded Google Map */}
+                <div className="w-full h-48 bg-muted rounded-lg overflow-hidden" data-testid="container-google-map">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    style={{ border: 0 }}
+                    referrerPolicy="no-referrer-when-downgrade"
+                    src={`https://maps.google.com/maps?q=${locationData.lat},${locationData.lng}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                    allowFullScreen
+                    loading="lazy"
+                    title="Location Map"
+                    data-testid="iframe-google-map"
+                  />
                 </div>
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  {locationData.lat.toFixed(6)}, {locationData.lng.toFixed(6)}
+                </p>
               </CardContent>
             </Card>
 
