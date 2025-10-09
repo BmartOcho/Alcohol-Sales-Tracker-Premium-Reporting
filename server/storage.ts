@@ -106,52 +106,73 @@ export class DatabaseStorage implements IStorage {
       return cached.data;
     }
     
-    console.log('Cache miss - querying database...');
+    console.log('Cache miss - querying database with SQL aggregation...');
+    
     // Build WHERE clause for date filtering
-    let whereClause;
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      whereClause = and(
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+    
+    // Step 1: Use SQL aggregation to get location summaries (FAST)
+    const aggregationQuery = db
+      .select({
+        permitNumber: monthlySales.permitNumber,
+        locationName: monthlySales.locationName,
+        locationAddress: monthlySales.locationAddress,
+        locationCity: monthlySales.locationCity,
+        locationCounty: monthlySales.locationCounty,
+        locationZip: monthlySales.locationZip,
+        lat: monthlySales.lat,
+        lng: monthlySales.lng,
+        totalSales: sql<string>`SUM(${monthlySales.totalReceipts})::text`,
+        liquorSales: sql<string>`SUM(${monthlySales.liquorReceipts})::text`,
+        wineSales: sql<string>`SUM(${monthlySales.wineReceipts})::text`,
+        beerSales: sql<string>`SUM(${monthlySales.beerReceipts})::text`,
+        latestMonth: sql<string>`MAX(${monthlySales.obligationEndDate})::text`,
+      })
+      .from(monthlySales);
+    
+    // Apply date filter if provided
+    if (start && end) {
+      aggregationQuery.where(and(
         sql`${monthlySales.obligationEndDate} >= ${start}`,
         sql`${monthlySales.obligationEndDate} <= ${end}`
-      );
+      ));
     }
-
-    // Query all monthly sales records
-    const records = await db
-      .select()
-      .from(monthlySales)
-      .where(whereClause)
-      .orderBy(desc(monthlySales.obligationEndDate));
-
-    // Group by permit number to create location summaries
-    const locationMap = new Map<string, {
-      info: any;
-      monthlyRecords: MonthlySalesRecord[];
-    }>();
-
-    for (const record of records) {
-      const permitNumber = record.permitNumber;
-      
-      if (!locationMap.has(permitNumber)) {
-        locationMap.set(permitNumber, {
-          info: {
-            permitNumber: record.permitNumber,
-            locationName: record.locationName,
-            locationAddress: record.locationAddress,
-            locationCity: record.locationCity,
-            locationCounty: record.locationCounty,
-            locationZip: record.locationZip,
-            lat: parseFloat(record.lat),
-            lng: parseFloat(record.lng),
-          },
-          monthlyRecords: []
-        });
+    
+    const aggregatedLocations = await aggregationQuery
+      .groupBy(
+        monthlySales.permitNumber,
+        monthlySales.locationName,
+        monthlySales.locationAddress,
+        monthlySales.locationCity,
+        monthlySales.locationCounty,
+        monthlySales.locationZip,
+        monthlySales.lat,
+        monthlySales.lng
+      );
+    
+    // Step 2: Fetch monthly records with same date filter (simple WHERE clause, no = ANY limit)
+    const allMonthlyRecords = start && end
+      ? await db
+          .select()
+          .from(monthlySales)
+          .where(and(
+            sql`${monthlySales.obligationEndDate} >= ${start}`,
+            sql`${monthlySales.obligationEndDate} <= ${end}`
+          ))
+          .orderBy(desc(monthlySales.obligationEndDate))
+      : await db
+          .select()
+          .from(monthlySales)
+          .orderBy(desc(monthlySales.obligationEndDate));
+    
+    // Step 3: Group monthly records by permit number
+    const monthlyRecordsMap = new Map<string, MonthlySalesRecord[]>();
+    for (const record of allMonthlyRecords) {
+      if (!monthlyRecordsMap.has(record.permitNumber)) {
+        monthlyRecordsMap.set(record.permitNumber, []);
       }
-
-      const location = locationMap.get(permitNumber)!;
-      location.monthlyRecords.push({
+      monthlyRecordsMap.get(record.permitNumber)!.push({
         permitNumber: record.permitNumber,
         locationName: record.locationName,
         locationAddress: record.locationAddress,
@@ -169,28 +190,24 @@ export class DatabaseStorage implements IStorage {
         lng: parseFloat(record.lng),
       });
     }
-
-    // Convert map to LocationSummary array
-    const locations: LocationSummary[] = [];
-    const entries = Array.from(locationMap.entries());
     
-    for (const [permitNumber, data] of entries) {
-      const totalSales = data.monthlyRecords.reduce((sum: number, r: MonthlySalesRecord) => sum + r.totalReceipts, 0);
-      const liquorSales = data.monthlyRecords.reduce((sum: number, r: MonthlySalesRecord) => sum + r.liquorReceipts, 0);
-      const wineSales = data.monthlyRecords.reduce((sum: number, r: MonthlySalesRecord) => sum + r.wineReceipts, 0);
-      const beerSales = data.monthlyRecords.reduce((sum: number, r: MonthlySalesRecord) => sum + r.beerReceipts, 0);
-      const latestMonth = data.monthlyRecords[0]?.obligationEndDate || "";
-
-      locations.push({
-        ...data.info,
-        totalSales,
-        liquorSales,
-        wineSales,
-        beerSales,
-        latestMonth,
-        monthlyRecords: data.monthlyRecords,
-      });
-    }
+    // Step 4: Combine aggregated data with monthly records
+    const locations: LocationSummary[] = aggregatedLocations.map(loc => ({
+      permitNumber: loc.permitNumber,
+      locationName: loc.locationName,
+      locationAddress: loc.locationAddress,
+      locationCity: loc.locationCity,
+      locationCounty: loc.locationCounty,
+      locationZip: loc.locationZip,
+      lat: parseFloat(loc.lat),
+      lng: parseFloat(loc.lng),
+      totalSales: parseFloat(loc.totalSales),
+      liquorSales: parseFloat(loc.liquorSales),
+      wineSales: parseFloat(loc.wineSales),
+      beerSales: parseFloat(loc.beerSales),
+      latestMonth: loc.latestMonth,
+      monthlyRecords: monthlyRecordsMap.get(loc.permitNumber) || [],
+    }))
 
     // Cache the results
     this.locationCache.set(cacheKey, {
