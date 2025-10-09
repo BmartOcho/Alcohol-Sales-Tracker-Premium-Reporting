@@ -10,7 +10,7 @@ import { PermitComparison } from "@/components/reports/PermitComparison";
 import { HotSpotTimeline } from "@/components/reports/HotSpotTimeline";
 
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState("permit");
+  const [activeTab, setActiveTab] = useState("location");
 
   return (
     <div className="min-h-screen bg-background">
@@ -32,13 +32,13 @@ export default function Reports() {
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-8" data-testid="tabs-report-types">
-            <TabsTrigger value="permit" data-testid="tab-permit-report">
+            <TabsTrigger value="location" data-testid="tab-location-report">
               <FileText className="h-4 w-4 mr-2" />
-              Permit Report
+              Location Report
             </TabsTrigger>
             <TabsTrigger value="comparison" data-testid="tab-comparison-report">
               <BarChart3 className="h-4 w-4 mr-2" />
-              Permit Comparison
+              Location Comparison
             </TabsTrigger>
             <TabsTrigger value="hotspot" data-testid="tab-hotspot-report">
               <TrendingUp className="h-4 w-4 mr-2" />
@@ -46,10 +46,10 @@ export default function Reports() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="permit" className="space-y-4">
+          <TabsContent value="location" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Permit Sales Report</CardTitle>
+                <CardTitle>Location Sales Report</CardTitle>
               </CardHeader>
               <CardContent>
                 <PermitReport />
@@ -60,7 +60,7 @@ export default function Reports() {
           <TabsContent value="comparison" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Compare Multiple Permits</CardTitle>
+                <CardTitle>Compare Multiple Locations</CardTitle>
               </CardHeader>
               <CardContent>
                 <PermitComparison />

@@ -110,6 +110,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/locations/search/by-name", async (req, res) => {
+    try {
+      const locationName = req.query.name as string;
+      
+      if (!locationName) {
+        return res.status(400).json({ error: "Location name is required" });
+      }
+      
+      // Search for locations by name (returns up to 20 matches)
+      const locations = await storage.getLocationsByName(locationName);
+      
+      res.json({ locations, total: locations.length });
+    } catch (error) {
+      console.error("Error searching locations by name:", error);
+      res.status(500).json({ 
+        error: "Failed to search locations",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   app.get("/api/locations/:permitNumber", async (req, res) => {
     try {
       const permitNumber = req.params.permitNumber;

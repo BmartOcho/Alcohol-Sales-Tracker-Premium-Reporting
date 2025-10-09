@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -7,14 +7,22 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Plus, X, AlertCircle } from "lucide-react";
+import { Plus, X, AlertCircle, Search } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
 
 const COLORS = ["#9333ea", "#dc2626", "#f59e0b", "#3b82f6", "#10b981", "#ec4899"];
 
 export function PermitComparison() {
   const [permitNumbers, setPermitNumbers] = useState<string[]>([]);
-  const [newPermit, setNewPermit] = useState("");
+  const [locationName, setLocationName] = useState("");
+  const [searchedName, setSearchedName] = useState("");
+
+  // Search for locations by name
+  const { data: searchResults, isLoading: isSearching } = useQuery<{ locations: LocationSummary[]; total: number }>({
+    queryKey: [`/api/locations/search/by-name?name=${searchedName}`],
+    enabled: !!searchedName,
+  });
 
   const permitQueries = useQueries({
     queries: permitNumbers.map(permit => ({
@@ -23,11 +31,15 @@ export function PermitComparison() {
     })),
   });
 
-  const handleAddPermit = () => {
-    const trimmed = newPermit.trim();
-    if (trimmed && !permitNumbers.includes(trimmed) && permitNumbers.length < 6) {
-      setPermitNumbers([...permitNumbers, trimmed]);
-      setNewPermit("");
+  const handleSearch = () => {
+    setSearchedName(locationName.trim());
+  };
+
+  const handleAddLocation = (permitNumber: string) => {
+    if (permitNumber && !permitNumbers.includes(permitNumber) && permitNumbers.length < 6) {
+      setPermitNumbers([...permitNumbers, permitNumber]);
+      setLocationName("");
+      setSearchedName("");
     }
   };
 
@@ -67,50 +79,92 @@ export function PermitComparison() {
   });
 
   const isLoading = permitQueries.some(q => q.isLoading);
+  const showSearchResults = searchResults && searchResults.locations.length > 0;
+  const showNoResults = searchedName && !isSearching && searchResults?.locations.length === 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-4 items-end">
-        <div className="flex-1">
-          <Label htmlFor="new-permit">Add Permit to Compare (max 6)</Label>
-          <Input
-            id="new-permit"
-            placeholder="Enter permit number"
-            value={newPermit}
-            onChange={(e) => setNewPermit(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddPermit()}
-            disabled={permitNumbers.length >= 6}
-            data-testid="input-add-permit"
-          />
+      <div className="space-y-4">
+        <div className="flex gap-4 items-end">
+          <div className="flex-1">
+            <Label htmlFor="location-name">Search Location to Add (max 6)</Label>
+            <Input
+              id="location-name"
+              placeholder="Enter location name"
+              value={locationName}
+              onChange={(e) => setLocationName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              disabled={permitNumbers.length >= 6}
+              data-testid="input-location-name"
+            />
+          </div>
+          <Button 
+            onClick={handleSearch} 
+            disabled={!locationName.trim() || permitNumbers.length >= 6}
+            data-testid="button-search-location"
+          >
+            <Search className="h-4 w-4 mr-2" />
+            Search
+          </Button>
         </div>
-        <Button 
-          onClick={handleAddPermit} 
-          disabled={!newPermit.trim() || permitNumbers.length >= 6}
-          data-testid="button-add-permit"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add
-        </Button>
+
+        {isSearching && (
+          <Skeleton className="h-20 w-full" />
+        )}
+
+        {showSearchResults && (
+          <div className="border rounded-lg p-4 bg-muted/20">
+            <Label htmlFor="location-select">Select a Location to Add ({searchResults.total} found)</Label>
+            <Select onValueChange={handleAddLocation}>
+              <SelectTrigger id="location-select" className="w-full mt-2" data-testid="select-location">
+                <SelectValue placeholder="Choose a location to add" />
+              </SelectTrigger>
+              <SelectContent>
+                {searchResults.locations.map((location) => (
+                  <SelectItem 
+                    key={location.permitNumber} 
+                    value={location.permitNumber}
+                    disabled={permitNumbers.includes(location.permitNumber)}
+                  >
+                    {location.locationName} - {location.locationCity} (${location.totalSales.toLocaleString()})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {showNoResults && (
+          <Alert data-testid="alert-no-results">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              No locations found matching "{searchedName}". Please try a different search term.
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       {permitNumbers.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {permitNumbers.map((permit, index) => (
-            <Badge key={permit} variant="secondary" className="pl-3 pr-1 py-1">
-              <span style={{ color: COLORS[index % COLORS.length] }} className="font-medium mr-2">
-                {permit}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-0.5"
-                onClick={() => handleRemovePermit(permit)}
-                data-testid={`button-remove-permit-${index}`}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          ))}
+          {permitNumbers.map((permit, index) => {
+            const locationData = permitQueries[index]?.data as LocationSummary | undefined;
+            return (
+              <Badge key={permit} variant="secondary" className="pl-3 pr-1 py-1" data-testid={`badge-location-${index}`}>
+                <span style={{ color: COLORS[index % COLORS.length] }} className="font-medium mr-2">
+                  {locationData?.locationName || permit}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-0.5"
+                  onClick={() => handleRemovePermit(permit)}
+                  data-testid={`button-remove-location-${index}`}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            );
+          })}
         </div>
       )}
 
@@ -122,7 +176,7 @@ export function PermitComparison() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Some permits could not be loaded. Please check the permit numbers and try again.
+            Some locations could not be loaded. Please try again.
           </AlertDescription>
         </Alert>
       )}
@@ -175,7 +229,7 @@ export function PermitComparison() {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Add permit numbers above to compare their sales performance over time.
+            Search for locations above to compare their sales performance over time.
           </AlertDescription>
         </Alert>
       )}
