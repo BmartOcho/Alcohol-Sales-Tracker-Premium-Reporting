@@ -5,6 +5,9 @@ export interface IStorage {
   // User operations (Required for Replit Auth - from blueprint:javascript_log_in_with_replit)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  // Stripe subscription operations (from blueprint:javascript_stripe)
+  updateUserStripeInfo(userId: string, customerId: string, subscriptionId: string): Promise<User>;
+  updateSubscriptionStatus(userId: string, status: string, endsAt?: Date): Promise<User>;
   // Location operations
   getLocations(startDate?: string, endDate?: string): Promise<LocationSummary[]>;
   getLocationByPermit(permitNumber: string): Promise<LocationSummary | null>;
@@ -47,6 +50,32 @@ export class MemStorage implements IStorage {
     };
     this.users.set(id, user);
     return user;
+  }
+
+  async updateUserStripeInfo(userId: string, customerId: string, subscriptionId: string): Promise<User> {
+    const user = this.users.get(userId);
+    if (!user) throw new Error('User not found');
+    const updated = {
+      ...user,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: subscriptionId,
+      updatedAt: new Date(),
+    };
+    this.users.set(userId, updated);
+    return updated;
+  }
+
+  async updateSubscriptionStatus(userId: string, status: string, endsAt?: Date): Promise<User> {
+    const user = this.users.get(userId);
+    if (!user) throw new Error('User not found');
+    const updated = {
+      ...user,
+      subscriptionStatus: status,
+      subscriptionEndsAt: endsAt || null,
+      updatedAt: new Date(),
+    };
+    this.users.set(userId, updated);
+    return updated;
   }
 
   async getLocations(startDate?: string, endDate?: string): Promise<LocationSummary[]> {
@@ -117,6 +146,38 @@ export class DatabaseStorage implements IStorage {
         },
       })
       .returning();
+    return user;
+  }
+
+  // Stripe subscription operations (from blueprint:javascript_stripe)
+  async updateUserStripeInfo(userId: string, customerId: string, subscriptionId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId,
+        subscriptionStatus: 'active',
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    if (!user) throw new Error('User not found');
+    return user;
+  }
+
+  async updateSubscriptionStatus(userId: string, status: string, endsAt?: Date): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        subscriptionStatus: status,
+        subscriptionEndsAt: endsAt || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    if (!user) throw new Error('User not found');
     return user;
   }
 

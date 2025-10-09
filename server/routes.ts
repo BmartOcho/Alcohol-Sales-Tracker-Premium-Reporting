@@ -1,7 +1,16 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import Stripe from "stripe";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+
+// Initialize Stripe (from blueprint:javascript_stripe)
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2025-09-30.clover",
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Replit Auth (from blueprint:javascript_log_in_with_replit)
@@ -16,6 +25,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Stripe subscription route (from blueprint:javascript_stripe)
+  app.post('/api/create-subscription', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      let user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // If user already has a subscription, return the existing one
+      if (user.stripeSubscriptionId) {
+        const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+        return res.json({
+          subscriptionId: subscription.id,
+          clientSecret: (subscription.latest_invoice as any)?.payment_intent?.client_secret,
+        });
+      }
+
+      if (!user.email) {
+        return res.status(400).json({ message: 'No user email on file' });
+      }
+
+      // Create Stripe customer
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+      });
+
+      // First create a product and price
+      const product = await stripe.products.create({
+        name: 'Texas Alcohol Sales Map Pro',
+        description: 'Full access to all features and analytics',
+      });
+
+      const price = await stripe.prices.create({
+        product: product.id,
+        unit_amount: 2000, // $20.00 in cents
+        currency: 'usd',
+        recurring: {
+          interval: 'month',
+        },
+      });
+
+      // Create subscription
+      const subscription = await stripe.subscriptions.create({
+        customer: customer.id,
+        items: [{ price: price.id }],
+        payment_behavior: 'default_incomplete',
+        payment_settings: { save_default_payment_method: 'on_subscription' },
+        expand: ['latest_invoice.payment_intent'],
+      });
+
+      // Update user with Stripe info
+      await storage.updateUserStripeInfo(userId, customer.id, subscription.id);
+
+      res.json({
+        subscriptionId: subscription.id,
+        clientSecret: (subscription.latest_invoice as any)?.payment_intent?.client_secret,
+      });
+    } catch (error: any) {
+      console.error('Error creating subscription:', error);
+      return res.status(400).json({ message: error.message });
     }
   });
 

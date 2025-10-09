@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
 import Reports from "@/pages/Reports";
+import Subscribe from "@/pages/Subscribe";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
         <>
           <Route path="/" component={Home} />
           <Route path="/reports" component={Reports} />
+          <Route path="/subscribe" component={Subscribe} />
         </>
       )}
       <Route component={NotFound} />

@@ -214,6 +214,11 @@ export default function Home() {
                   Reports
                 </Button>
               </Link>
+              <Link href="/subscribe">
+                <Button variant="default" size="sm" data-testid="button-subscribe">
+                  Upgrade
+                </Button>
+              </Link>
               <ThemeToggle />
             </div>
           </div>
