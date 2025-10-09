@@ -13,6 +13,7 @@ import type { LocationSummary } from "@shared/schema";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { useDebounce } from "@/hooks/useDebounce";
+import { LocationMap } from "@/components/LocationMap";
 
 const COLORS = {
   liquor: "#3b82f6", // blue
@@ -411,28 +412,14 @@ export function PermitReport() {
                   <p className="text-muted-foreground">{locationData.locationCity}, TX {locationData.locationZip}</p>
                 </div>
 
-                {/* Embedded Map - Fallback to static map */}
-                <div className="w-full h-48 bg-muted rounded-lg overflow-hidden flex items-center justify-center" data-testid="container-map">
-                  <div className="text-center p-4">
-                    <p className="text-sm font-medium mb-2">
-                      {locationData.locationAddress}
-                    </p>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {locationData.locationCity}, TX {locationData.locationZip}
-                    </p>
-                    <a 
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationData.locationAddress + ', ' + locationData.locationCity + ', TX ' + locationData.locationZip)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      View on Google Maps →
-                    </a>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground text-center mt-2">
-                  {locationData.locationAddress}, {locationData.locationCity}, TX {locationData.locationZip}
-                </p>
+                {/* Embedded Map */}
+                <LocationMap
+                  address={locationData.locationAddress}
+                  city={locationData.locationCity}
+                  state="TX"
+                  zip={locationData.locationZip}
+                  className="w-full h-48 rounded-lg"
+                />
               </CardContent>
             </Card>
 
