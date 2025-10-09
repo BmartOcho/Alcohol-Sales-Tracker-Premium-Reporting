@@ -71,7 +71,7 @@ const COUNTY_CODE_TO_NAME: Record<string, string> = {
 
 export default function Home() {
   const [selectedYear, setSelectedYear] = useState<string>("2025");
-  const [selectedLocation, setSelectedLocation] = useState<LocationSummary | null>(null);
+  const [selectedPermitNumber, setSelectedPermitNumber] = useState<string | null>(null);
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -79,6 +79,24 @@ export default function Home() {
 
   // Available years: 2015-2024 in database, 2025 from API (real-time)
   const availableYears = ["2025", "2024", "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015"];
+
+  // Fetch full location details (all-time data) when a location is selected
+  const { data: selectedLocationFull } = useQuery<LocationSummary>({
+    queryKey: ["/api/locations/full", selectedPermitNumber], // Use unique key to avoid cache conflicts
+    queryFn: async () => {
+      const response = await fetch(`/api/locations/${selectedPermitNumber}`);
+      if (!response.ok) throw new Error('Failed to fetch location');
+      const data = await response.json();
+      console.log(`[HOME] Fetched full location data:`, {
+        permitNumber: data.permitNumber,
+        totalSales: data.totalSales,
+        monthlyRecords: data.monthlyRecords?.length
+      });
+      return data;
+    },
+    enabled: !!selectedPermitNumber,
+    staleTime: 0, // Always fetch fresh all-time data
+  });
 
   const dateRange = useMemo(() => {
     const year = parseInt(selectedYear);
@@ -331,7 +349,7 @@ export default function Home() {
                   <Card 
                     key={location.permitNumber}
                     className="p-4 hover-elevate active-elevate-2 cursor-pointer transition-all"
-                    onClick={() => setSelectedLocation(location)}
+                    onClick={() => setSelectedPermitNumber(location.permitNumber)}
                     data-testid={`card-location-${location.permitNumber}`}
                   >
                     <div className="space-y-2">
@@ -411,9 +429,9 @@ export default function Home() {
 
       {/* Location Detail Modal */}
       <LocationDetailModal
-        location={selectedLocation}
-        open={!!selectedLocation}
-        onClose={() => setSelectedLocation(null)}
+        location={selectedLocationFull || null}
+        open={!!selectedPermitNumber}
+        onClose={() => setSelectedPermitNumber(null)}
       />
 
       {/* Map Section */}
@@ -443,7 +461,7 @@ export default function Home() {
               locations={filteredLocations}
               allLocations={locations}
               onLocationClick={(location) => {
-                setSelectedLocation(location);
+                setSelectedPermitNumber(location.permitNumber);
               }}
               onCountyClick={(countyName) => {
                 setSelectedCounty(countyName);

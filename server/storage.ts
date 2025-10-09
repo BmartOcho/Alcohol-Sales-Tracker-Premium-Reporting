@@ -338,19 +338,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getLocationByPermit(permitNumber: string): Promise<LocationSummary | null> {
-    console.log(`Querying database for permit: ${permitNumber}`);
+    console.log(`[STORAGE] Querying database for permit: ${permitNumber}`);
     
     // Step 1: Aggregate sales for this specific permit
+    // Use MAX() for location details instead of GROUP BY to avoid splitting data if details vary
     const [aggregated] = await db
       .select({
         permitNumber: monthlySales.permitNumber,
-        locationName: monthlySales.locationName,
-        locationAddress: monthlySales.locationAddress,
-        locationCity: monthlySales.locationCity,
-        locationCounty: monthlySales.locationCounty,
-        locationZip: monthlySales.locationZip,
-        lat: monthlySales.lat,
-        lng: monthlySales.lng,
+        locationName: sql<string>`MAX(${monthlySales.locationName})`,
+        locationAddress: sql<string>`MAX(${monthlySales.locationAddress})`,
+        locationCity: sql<string>`MAX(${monthlySales.locationCity})`,
+        locationCounty: sql<string>`MAX(${monthlySales.locationCounty})`,
+        locationZip: sql<string>`MAX(${monthlySales.locationZip})`,
+        lat: sql<string>`MAX(${monthlySales.lat})`,
+        lng: sql<string>`MAX(${monthlySales.lng})`,
         totalSales: sql<string>`SUM(${monthlySales.totalReceipts})::text`,
         liquorSales: sql<string>`SUM(${monthlySales.liquorReceipts})::text`,
         wineSales: sql<string>`SUM(${monthlySales.wineReceipts})::text`,
@@ -359,16 +360,14 @@ export class DatabaseStorage implements IStorage {
       })
       .from(monthlySales)
       .where(eq(monthlySales.permitNumber, permitNumber))
-      .groupBy(
-        monthlySales.permitNumber,
-        monthlySales.locationName,
-        monthlySales.locationAddress,
-        monthlySales.locationCity,
-        monthlySales.locationCounty,
-        monthlySales.locationZip,
-        monthlySales.lat,
-        monthlySales.lng
-      );
+      .groupBy(monthlySales.permitNumber); // Group ONLY by permit number!
+    
+    console.log(`[STORAGE] Aggregated result for ${permitNumber}:`, {
+      totalSales: aggregated?.totalSales,
+      liquorSales: aggregated?.liquorSales,
+      wineSales: aggregated?.wineSales,
+      beerSales: aggregated?.beerSales
+    });
 
     if (!aggregated) {
       console.log(`No data found for permit: ${permitNumber}`);
