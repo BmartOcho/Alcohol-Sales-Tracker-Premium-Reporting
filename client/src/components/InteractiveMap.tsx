@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import "leaflet.markercluster";
 import type { LocationSummary } from "@shared/schema";
 
 // Texas Comptroller county codes (used by TABC data)
@@ -79,7 +82,7 @@ export function InteractiveMap({
 }: InteractiveMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const markersLayerRef = useRef<any>(null);
   const countyLayerRef = useRef<L.GeoJSON | null>(null);
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
 
@@ -103,8 +106,25 @@ export function InteractiveMap({
         className: "map-tiles",
       }).addTo(mapRef.current);
 
-      // Initialize markers layer
-      markersLayerRef.current = L.layerGroup().addTo(mapRef.current);
+      // Initialize marker cluster group
+      markersLayerRef.current = (L as any).markerClusterGroup({
+        maxClusterRadius: 80,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        iconCreateFunction: function(cluster: any) {
+          const count = cluster.getChildCount();
+          let size = 'small';
+          if (count > 100) size = 'large';
+          else if (count > 20) size = 'medium';
+          
+          return (L as any).divIcon({
+            html: `<div><span>${count}</span></div>`,
+            className: `marker-cluster marker-cluster-${size}`,
+            iconSize: (L as any).point(40, 40)
+          });
+        }
+      }).addTo(mapRef.current);
     }
 
     return () => {
