@@ -10,6 +10,7 @@ Preferred communication style: Simple, everyday language.
 - **Authentication System**: Implemented Replit Auth (OIDC) for user login with Google, GitHub, and email/password support. Session management via PostgreSQL with automatic token refresh.
 - **Subscription & Payments**: Integrated Stripe payment system with $20/month Pro subscription. Secure payment flow with status validation, customer reuse, and proper error handling for expired/canceled subscriptions.
 - **SEO Optimization**: Comprehensive SEO implementation including meta tags (Open Graph, Twitter Cards), structured data (JSON-LD), sitemap.xml, and robots.txt for search engine indexing. All pages have unique, descriptive titles and meta descriptions optimized for search visibility.
+- **Critical Data Fix (Oct 2025)**: Fixed SQL GROUP BY bug in `getLocationByPermit()` that was splitting permit data into multiple groups when location details varied across monthly records. Now groups only by `permitNumber` and uses `MAX()` for location fields, ensuring consistent all-time totals across map modal, search results, and reports pages.
 
 ## System Architecture
 
