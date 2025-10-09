@@ -45,10 +45,21 @@ function formatCurrency(value: number): string {
 export function LocationDetailModal({ location, open, onClose, selectedYear }: LocationDetailModalProps) {
   if (!location) return null;
 
+  // Helper to extract year from both ISO and YYYYMMDD formats
+  const getRecordYear = (dateStr: string): string => {
+    if (dateStr.includes('-') || dateStr.includes('T')) {
+      // ISO format
+      return new Date(dateStr).getFullYear().toString();
+    } else {
+      // YYYYMMDD format
+      return dateStr.substring(0, 4);
+    }
+  };
+
   // Filter monthly records by selected year if provided
   const yearFilteredRecords = selectedYear 
     ? location.monthlyRecords.filter(record => {
-        const recordYear = new Date(record.obligationEndDate).getFullYear().toString();
+        const recordYear = getRecordYear(record.obligationEndDate);
         return recordYear === selectedYear;
       })
     : location.monthlyRecords;
