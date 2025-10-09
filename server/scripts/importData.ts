@@ -67,9 +67,26 @@ async function importDataForYear(year: number) {
 }
 
 async function main() {
-  // Get year from command line argument or default to current year
-  const yearArg = process.argv[2];
-  const years = yearArg ? [parseInt(yearArg)] : [2024];
+  // Get year(s) from command line arguments
+  // Usage: tsx importData.ts 2023           (single year)
+  //        tsx importData.ts 2015 2024      (year range)
+  //        tsx importData.ts                (default: 2024)
+  const yearArg1 = process.argv[2];
+  const yearArg2 = process.argv[3];
+  
+  let years: number[];
+  if (yearArg1 && yearArg2) {
+    // Range of years: importData.ts 2015 2024
+    const start = parseInt(yearArg1);
+    const end = parseInt(yearArg2);
+    years = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  } else if (yearArg1) {
+    // Single year: importData.ts 2023
+    years = [parseInt(yearArg1)];
+  } else {
+    // Default: current year
+    years = [2024];
+  }
   
   console.log("🚀 Starting data import from Texas Open Data Portal...\n");
   console.log(`Years to import: ${years.join(", ")}`);

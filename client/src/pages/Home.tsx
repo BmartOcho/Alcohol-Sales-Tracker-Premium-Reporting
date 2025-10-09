@@ -68,15 +68,15 @@ const COUNTY_CODE_TO_NAME: Record<string, string> = {
 };
 
 export default function Home() {
-  const [selectedYear, setSelectedYear] = useState<string>("2024");
+  const [selectedYear, setSelectedYear] = useState<string>("2025");
   const [selectedLocation, setSelectedLocation] = useState<LocationSummary | null>(null);
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 100;
 
-  // Available years in database (only 2024 currently imported)
-  const availableYears = ["2024"];
+  // Available years: 2015-2024 in database, 2025 from API (real-time)
+  const availableYears = ["2025", "2024", "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015"];
 
   const dateRange = useMemo(() => {
     const year = parseInt(selectedYear);
