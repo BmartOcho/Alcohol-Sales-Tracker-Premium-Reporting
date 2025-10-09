@@ -9,6 +9,7 @@ interface LocationDetailModalProps {
   location: LocationSummary | null;
   open: boolean;
   onClose: () => void;
+  selectedYear?: string;
 }
 
 function formatMonthYear(dateStr: string): string {
@@ -41,10 +42,46 @@ function formatCurrency(value: number): string {
   return `$${value.toLocaleString()}`;
 }
 
-export function LocationDetailModal({ location, open, onClose }: LocationDetailModalProps) {
+export function LocationDetailModal({ location, open, onClose, selectedYear }: LocationDetailModalProps) {
   if (!location) return null;
 
-  const chartData = location.monthlyRecords
+  // Filter monthly records by selected year if provided
+  const yearFilteredRecords = selectedYear 
+    ? location.monthlyRecords.filter(record => {
+        const recordYear = new Date(record.obligationEndDate).getFullYear().toString();
+        return recordYear === selectedYear;
+      })
+    : location.monthlyRecords;
+
+  // Deduplicate by month-year and sum sales for duplicate months
+  const monthMap = new Map<string, MonthlySalesRecord>();
+  
+  for (const record of yearFilteredRecords) {
+    const monthKey = formatMonthYear(record.obligationEndDate);
+    
+    if (monthMap.has(monthKey)) {
+      // Sum sales for duplicate months
+      const existing = monthMap.get(monthKey)!;
+      monthMap.set(monthKey, {
+        ...existing,
+        liquorReceipts: existing.liquorReceipts + record.liquorReceipts,
+        wineReceipts: existing.wineReceipts + record.wineReceipts,
+        beerReceipts: existing.beerReceipts + record.beerReceipts,
+        totalReceipts: existing.totalReceipts + record.totalReceipts,
+      });
+    } else {
+      monthMap.set(monthKey, { ...record });
+    }
+  }
+  
+  const filteredRecords = Array.from(monthMap.values()).sort((a, b) => 
+    b.obligationEndDate.localeCompare(a.obligationEndDate)
+  );
+
+  // Calculate totals for the filtered year
+  const yearTotalSales = filteredRecords.reduce((sum, r) => sum + r.totalReceipts, 0);
+
+  const chartData = filteredRecords
     .slice(0, 12)
     .map(record => ({
       month: formatMonthYear(record.obligationEndDate),
@@ -69,11 +106,13 @@ export function LocationDetailModal({ location, open, onClose }: LocationDetailM
         <div className="grid grid-cols-3 gap-3 py-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">Total Sales</CardTitle>
+              <CardTitle className="text-sm text-muted-foreground">
+                {selectedYear ? `Total Sales (${selectedYear})` : "Total Sales (All Time)"}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold font-mono" data-testid="text-location-total-sales">
-                {formatCurrency(location.totalSales)}
+                {formatCurrency(selectedYear ? yearTotalSales : location.totalSales)}
               </p>
             </CardContent>
           </Card>
@@ -82,7 +121,7 @@ export function LocationDetailModal({ location, open, onClose }: LocationDetailM
               <CardTitle className="text-sm text-muted-foreground">Months Recorded</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{location.monthlyRecords.length}</p>
+              <p className="text-2xl font-bold">{filteredRecords.length}</p>
             </CardContent>
           </Card>
           <Card>
@@ -90,14 +129,14 @@ export function LocationDetailModal({ location, open, onClose }: LocationDetailM
               <CardTitle className="text-sm text-muted-foreground">Latest Month</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-lg font-semibold">{formatMonthYear(location.latestMonth)}</p>
+              <p className="text-lg font-semibold">{formatMonthYear(filteredRecords[0]?.obligationEndDate || location.latestMonth)}</p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-3">
           <h3 className="text-sm font-semibold mb-3">Sales Trend (Last 12 Months)</h3>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={180}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
@@ -126,11 +165,11 @@ export function LocationDetailModal({ location, open, onClose }: LocationDetailM
           </ResponsiveContainer>
         </div>
 
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 pb-4">
           <h3 className="text-sm font-semibold mb-3">Monthly Sales History</h3>
-          <ScrollArea className="h-[200px] border rounded-lg">
+          <ScrollArea className="h-[280px] border rounded-lg">
             <div className="p-4 space-y-3">
-              {location.monthlyRecords.map((record: MonthlySalesRecord, index: number) => (
+              {filteredRecords.map((record: MonthlySalesRecord, index: number) => (
                 <Card key={`${record.permitNumber}-${record.obligationEndDate}`} className="hover-elevate" data-testid={`card-monthly-record-${index}`}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">

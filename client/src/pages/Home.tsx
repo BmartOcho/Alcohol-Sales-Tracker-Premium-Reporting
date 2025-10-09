@@ -432,6 +432,7 @@ export default function Home() {
         location={selectedLocationFull || null}
         open={!!selectedPermitNumber}
         onClose={() => setSelectedPermitNumber(null)}
+        selectedYear={selectedYear}
       />
 
       {/* Map Section */}
