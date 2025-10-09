@@ -89,35 +89,58 @@ export default function Home() {
   const { data: locations, isLoading, error } = useQuery<LocationSummary[]>({
     queryKey: ["/api/locations", dateRange.startDate, dateRange.endDate],
     queryFn: async () => {
-      const allLocations: LocationSummary[] = [];
-      let page = 1;
-      let hasMore = true;
+      // Fetch first page to get total count
+      const params = new URLSearchParams();
+      if (dateRange.startDate && dateRange.endDate) {
+        params.append('startDate', dateRange.startDate);
+        params.append('endDate', dateRange.endDate);
+      }
+      params.append('page', '1');
+      params.append('limit', '1000');
       
-      while (hasMore) {
-        const params = new URLSearchParams();
-        if (dateRange.startDate && dateRange.endDate) {
-          params.append('startDate', dateRange.startDate);
-          params.append('endDate', dateRange.endDate);
-        }
-        params.append('page', page.toString());
-        params.append('limit', '1000');
-        
-        const url = `/api/locations?${params.toString()}`;
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `Server error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        allLocations.push(...data.locations);
-        hasMore = data.pagination.hasMore;
-        page++;
-        
-        console.log(`Fetched page ${data.pagination.page}: ${data.locations.length} locations (${allLocations.length}/${data.pagination.total} total)`);
+      const firstResponse = await fetch(`/api/locations?${params.toString()}`);
+      if (!firstResponse.ok) {
+        const errorData = await firstResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || `Server error: ${firstResponse.status}`);
       }
       
+      const firstData = await firstResponse.json();
+      const allLocations: LocationSummary[] = [...firstData.locations];
+      
+      // If there are more pages, fetch them in parallel (batches of 5)
+      if (firstData.pagination.hasMore) {
+        const totalPages = firstData.pagination.totalPages;
+        const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+        
+        // Fetch in batches of 5 pages at a time to avoid overwhelming the server
+        const batchSize = 5;
+        for (let i = 0; i < remainingPages.length; i += batchSize) {
+          const batch = remainingPages.slice(i, i + batchSize);
+          const batchPromises = batch.map(async (page) => {
+            const batchParams = new URLSearchParams();
+            if (dateRange.startDate && dateRange.endDate) {
+              batchParams.append('startDate', dateRange.startDate);
+              batchParams.append('endDate', dateRange.endDate);
+            }
+            batchParams.append('page', page.toString());
+            batchParams.append('limit', '1000');
+            
+            const response = await fetch(`/api/locations?${batchParams.toString()}`);
+            if (!response.ok) throw new Error(`Failed to fetch page ${page}`);
+            const data = await response.json();
+            return { page, locations: data.locations };
+          });
+          
+          const batchResults = await Promise.all(batchPromises);
+          batchResults
+            .sort((a, b) => a.page - b.page)
+            .forEach(result => allLocations.push(...result.locations));
+            
+          console.log(`Fetched batch: pages ${batch[0]}-${batch[batch.length - 1]} (${allLocations.length}/${firstData.pagination.total} total)`);
+        }
+      }
+      
+      console.log(`All data loaded: ${allLocations.length} locations`);
       return allLocations;
     },
     retry: 2,
