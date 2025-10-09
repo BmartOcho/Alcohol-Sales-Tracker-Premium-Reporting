@@ -29,17 +29,17 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 - **Data Updates**: Run import script monthly when TABC publishes new data
 - **Cache Management**: POST `/api/locations/refresh` endpoint clears all caches
 - **All features work across all years**: search, filtering, county selection, location details
-- **Map Marker Clustering**: Solved performance issues with rendering 21,000+ markers
-  - Integrated Leaflet MarkerClusterGroup plugin to group nearby markers
-  - Cluster sizes: small (<20), medium (20-100), large (>100) with visual indicators
-  - When zoomed out: markers automatically cluster into numbered groups
-  - When zoomed in or clicked: clusters expand to show individual markers
-  - **Result**: Smooth map interactions, no lag, dramatically reduced DOM elements (from 21k to hundreds)
+- **Map Rendering**: All 22k+ locations render as individual CircleMarkers
+  - No clustering - simple, straightforward marker display
+  - Direct click on markers opens popup with location details
+  - Color-coded by dominant category: purple (liquor), red (wine), amber (beer)
+  - Note: May experience slight performance lag on lower-end devices with 22k markers
+  - Future optimization options: server-side aggregation, heatmaps, or viewport-based loading
 - **Production Memory Fix**: Resolved "system received signal terminated" crash in published apps
   - Root cause: Sending all 21k locations in one response exceeded production memory limits
   - Solution: Paginated API responses (1000 locations per page) prevent memory overflow
   - Published apps now load successfully without crashing
-- **All Features Preserved**: Search, filtering, county selection, location details, and tooltips work identically with better performance
+- **All Features Preserved**: Search, filtering, county selection, location details, and tooltips work correctly
 
 ### October 8, 2025 (County Code Normalization Fix)
 - **County Code Leading Zero Fix**: Fixed missing data for counties with codes < 100
