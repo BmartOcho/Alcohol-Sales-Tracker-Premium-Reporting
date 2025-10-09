@@ -75,9 +75,7 @@ import { and, between, eq, desc, sql } from "drizzle-orm";
 
 export class DatabaseStorage implements IStorage {
   private locationCache: Map<string, { data: LocationSummary[], timestamp: number }> = new Map();
-  private inFlightRequests: Map<string, Promise<LocationSummary[]>> = new Map(); // Deduplicate concurrent requests
-  private readonly CACHE_TTL = 1000 * 60 * 60; // 1 hour cache for historical data
-  private readonly CACHE_TTL_2025 = 1000 * 60 * 15; // 15 minute cache for 2025 (current year updates monthly)
+  private readonly CACHE_TTL = 1000 * 60 * 60; // 1 hour cache for all database queries
 
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -98,67 +96,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getLocations(startDate?: string, endDate?: string): Promise<LocationSummary[]> {
-    const year = startDate ? new Date(startDate).getFullYear() : null;
     const cacheKey = startDate && endDate ? `${startDate}_${endDate}` : 'all';
     const cached = this.locationCache.get(cacheKey);
     const now = Date.now();
     
-    // Check if requesting 2025 data - if so, fetch from API with shorter cache
-    if (year === 2025) {
-      if (cached && (now - cached.timestamp) < this.CACHE_TTL_2025) {
-        console.log(`✨ 2025 cache hit - returning ${cached.data.length} locations from memory`);
-        return cached.data;
-      }
-      
-      // Check if there's already an in-flight request for this data
-      let inFlight = this.inFlightRequests.get(cacheKey);
-      if (inFlight) {
-        console.log('✨ Waiting for in-flight 2025 request to complete...');
-        return await inFlight;
-      }
-      
-      // Create a deferred promise and store it IMMEDIATELY before any async operations
-      console.log('✨ Fetching 2025 data from Texas API (real-time)...');
-      let resolvePromise!: (value: LocationSummary[]) => void;
-      let rejectPromise!: (reason?: any) => void;
-      
-      const requestPromise = new Promise<LocationSummary[]>((resolve, reject) => {
-        resolvePromise = resolve;
-        rejectPromise = reject;
-      });
-      
-      // Set immediately to prevent other concurrent requests from starting (BEFORE any await!)
-      this.inFlightRequests.set(cacheKey, requestPromise);
-      
-      // Now fetch the data asynchronously
-      (async () => {
-        try {
-          const { fetchAllTexasAlcoholData } = await import("./services/texasDataService");
-          const locations = await fetchAllTexasAlcoholData(Infinity, startDate, endDate);
-          
-          // Cache 2025 data with shorter TTL (15 minutes)
-          this.locationCache.set(cacheKey, {
-            data: locations,
-            timestamp: Date.now()
-          });
-          console.log(`✨ Cached ${locations.length} 2025 locations (15 min TTL)`);
-          
-          resolvePromise(locations);
-        } catch (error) {
-          console.error('❌ Error fetching 2025 data from API:', error);
-          rejectPromise(error);
-        } finally {
-          // Remove from in-flight requests (even if error occurred)
-          this.inFlightRequests.delete(cacheKey);
-        }
-      })();
-      
-      return await requestPromise;
-    }
-
-    // For historical years (2015-2024), use database with cache
+    // Check cache (1 hour TTL for all years)
     if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
-      console.log(`Cache hit - returning ${cached.data.length} locations from memory`);
+      console.log(`✨ Cache hit - returning ${cached.data.length} locations from memory`);
       return cached.data;
     }
     
