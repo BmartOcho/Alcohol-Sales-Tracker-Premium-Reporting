@@ -100,9 +100,10 @@ export function PermitReport() {
     const latestRecordDate = new Date(latestFilteredRecord.obligationEndDate);
     const now = new Date();
     
-    // Check if location is inactive (latest record > 6 months old)
+    // Check if location is inactive (latest record > 6 months old) - ONLY when viewing all-time data
+    // Don't show inactive warning when filtering by a specific year (historical data)
     const monthsSinceLastRecord = (now.getTime() - latestRecordDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
-    const isInactive = monthsSinceLastRecord > 6;
+    const isInactive = selectedYear === "all" && monthsSinceLastRecord > 6;
     
     // Always use latest record date as reference (data is only available up to previous month)
     const referenceDate = latestRecordDate;
