@@ -46,19 +46,27 @@ export function PermitReport() {
 
   // Calculate time period metrics
   const calculatePeriodMetrics = () => {
-    if (!locationData?.monthlyRecords) return null;
+    if (!locationData?.monthlyRecords || locationData.monthlyRecords.length === 0) return null;
 
-    const now = new Date();
     const records = locationData.monthlyRecords;
+    const latestRecordDate = new Date(locationData.latestMonth);
+    const now = new Date();
+    
+    // Check if location is inactive (latest record > 6 months old)
+    const monthsSinceLastRecord = (now.getTime() - latestRecordDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+    const isInactive = monthsSinceLastRecord > 6;
+    
+    // Use latest record date as reference for inactive locations
+    const referenceDate = isInactive ? latestRecordDate : now;
 
     // Helper to get sales for date range
     const getSalesForPeriod = (monthsAgo: number) => {
-      const startDate = new Date(now);
+      const startDate = new Date(referenceDate);
       startDate.setMonth(startDate.getMonth() - monthsAgo);
       
       const periodRecords = records.filter(r => {
         const recordDate = new Date(r.obligationEndDate);
-        return recordDate >= startDate;
+        return recordDate >= startDate && recordDate <= referenceDate;
       });
 
       const total = periodRecords.reduce((sum, r) => sum + r.totalReceipts, 0);
@@ -98,7 +106,9 @@ export function PermitReport() {
         liquor: locationData.liquorSales,
         wine: locationData.wineSales,
         beer: locationData.beerSales,
-      }
+      },
+      isInactive,
+      latestRecordDate: latestRecordDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     };
   };
 
@@ -245,40 +255,51 @@ export function PermitReport() {
 
       {locationData && metrics && (
         <div ref={reportRef} className="space-y-6 bg-background p-6 rounded-lg">
+          {/* Inactive Warning */}
+          {metrics.isInactive && (
+            <Alert data-testid="alert-inactive-location">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                This location has been inactive since <strong>{metrics.latestRecordDate}</strong>. 
+                Time periods shown below are calculated from the last reporting date, not current date.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Header Metrics */}
           <div className="grid grid-cols-5 gap-4">
             <MetricCard
-              label="Recent Month"
+              label={metrics.isInactive ? "Final Month" : "Recent Month"}
               value={metrics.recentMonth.value}
               change={metrics.recentMonth.change}
-              sublabel={new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              sublabel={metrics.isInactive ? metrics.latestRecordDate : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               data-testid="metric-recent-month"
             />
             <MetricCard
               label="Past Quarter"
               value={metrics.pastQuarter.value}
               change={metrics.pastQuarter.change}
-              sublabel="Last 3 Months"
+              sublabel={metrics.isInactive ? "Before Closing" : "Last 3 Months"}
               data-testid="metric-past-quarter"
             />
             <MetricCard
               label="Past 6 Months"
               value={metrics.past6Months.value}
               change={metrics.past6Months.change}
-              sublabel="Last 6 Months"
+              sublabel={metrics.isInactive ? "Before Closing" : "Last 6 Months"}
               data-testid="metric-past-6-months"
             />
             <MetricCard
               label="Past Year"
               value={metrics.pastYear.value}
               change={metrics.pastYear.change}
-              sublabel="Last 12 Months"
+              sublabel={metrics.isInactive ? "Before Closing" : "Last 12 Months"}
               data-testid="metric-past-year"
             />
             <MetricCard
               label="Past 2 Years"
               value={metrics.past2Years.value}
-              sublabel="Last 24 Months"
+              sublabel={metrics.isInactive ? "Before Closing" : "Last 24 Months"}
               data-testid="metric-past-2-years"
             />
           </div>
