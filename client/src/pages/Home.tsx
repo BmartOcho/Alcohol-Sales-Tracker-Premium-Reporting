@@ -172,7 +172,8 @@ export default function Home() {
       );
     }
 
-    return filtered;
+    // Sort by total sales (highest first) - clone to avoid mutating cache
+    return [...filtered].sort((a, b) => b.totalSales - a.totalSales);
   }, [locations, searchQuery, selectedCounty]);
 
   // Paginate filtered locations
