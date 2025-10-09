@@ -425,16 +425,17 @@ export class DatabaseStorage implements IStorage {
     console.log(`Searching database for location name: ${locationName}`);
     
     // Search for locations with partial name match (case-insensitive)
+    // Group only by permitNumber to avoid duplicates when location details vary
     const aggregatedLocations = await db
       .select({
         permitNumber: monthlySales.permitNumber,
-        locationName: monthlySales.locationName,
-        locationAddress: monthlySales.locationAddress,
-        locationCity: monthlySales.locationCity,
-        locationCounty: monthlySales.locationCounty,
-        locationZip: monthlySales.locationZip,
-        lat: monthlySales.lat,
-        lng: monthlySales.lng,
+        locationName: sql<string>`MAX(${monthlySales.locationName})`,
+        locationAddress: sql<string>`MAX(${monthlySales.locationAddress})`,
+        locationCity: sql<string>`MAX(${monthlySales.locationCity})`,
+        locationCounty: sql<string>`MAX(${monthlySales.locationCounty})`,
+        locationZip: sql<string>`MAX(${monthlySales.locationZip})`,
+        lat: sql<string>`MAX(${monthlySales.lat})`,
+        lng: sql<string>`MAX(${monthlySales.lng})`,
         totalSales: sql<string>`SUM(${monthlySales.totalReceipts})::text`,
         liquorSales: sql<string>`SUM(${monthlySales.liquorReceipts})::text`,
         wineSales: sql<string>`SUM(${monthlySales.wineReceipts})::text`,
@@ -443,16 +444,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(monthlySales)
       .where(sql`LOWER(${monthlySales.locationName}) LIKE LOWER(${`%${locationName}%`})`)
-      .groupBy(
-        monthlySales.permitNumber,
-        monthlySales.locationName,
-        monthlySales.locationAddress,
-        monthlySales.locationCity,
-        monthlySales.locationCounty,
-        monthlySales.locationZip,
-        monthlySales.lat,
-        monthlySales.lng
-      )
+      .groupBy(monthlySales.permitNumber)
       .orderBy(desc(sql<string>`SUM(${monthlySales.totalReceipts})::numeric`))
       .limit(20);
 
