@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from "recharts";
 import { AlertCircle, Download, TrendingUp, TrendingDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
@@ -23,6 +23,7 @@ const COLORS = {
 export function PermitReport() {
   const [locationName, setLocationName] = useState("");
   const [selectedPermit, setSelectedPermit] = useState<string>("");
+  const [selectedYear, setSelectedYear] = useState<string>("all");
   const reportRef = useRef<HTMLDivElement>(null);
 
   // Debounce search query (300ms delay)
@@ -44,11 +45,38 @@ export function PermitReport() {
     setSelectedPermit(permitNumber);
   };
 
+  // Helper to extract year from both ISO and YYYYMMDD formats
+  const getRecordYear = (dateStr: string): string => {
+    if (dateStr.includes('-') || dateStr.includes('T')) {
+      return new Date(dateStr).getFullYear().toString();
+    } else {
+      return dateStr.substring(0, 4);
+    }
+  };
+
+  // Filter records by selected year
+  const getFilteredRecords = () => {
+    if (!locationData?.monthlyRecords) return [];
+    if (selectedYear === "all") return locationData.monthlyRecords;
+    
+    return locationData.monthlyRecords.filter(record => {
+      const recordYear = getRecordYear(record.obligationEndDate);
+      return recordYear === selectedYear;
+    });
+  };
+
+  const filteredRecords = getFilteredRecords();
+
+  // Calculate available years from data
+  const availableYears = locationData?.monthlyRecords 
+    ? Array.from(new Set(locationData.monthlyRecords.map(r => getRecordYear(r.obligationEndDate)))).sort().reverse()
+    : [];
+
   // Calculate time period metrics
   const calculatePeriodMetrics = () => {
     if (!locationData?.monthlyRecords || locationData.monthlyRecords.length === 0) return null;
 
-    const records = locationData.monthlyRecords;
+    const records = selectedYear === "all" ? locationData.monthlyRecords : filteredRecords;
     const latestRecordDate = new Date(locationData.latestMonth);
     const now = new Date();
     
@@ -114,11 +142,25 @@ export function PermitReport() {
 
   const metrics = calculatePeriodMetrics();
 
-  // Prepare revenue mix data
+  // Calculate totals based on filtered records
+  const calculateTotals = () => {
+    if (!filteredRecords.length) return { total: 0, liquor: 0, wine: 0, beer: 0 };
+    
+    return filteredRecords.reduce((acc, record) => ({
+      total: acc.total + record.totalReceipts,
+      liquor: acc.liquor + record.liquorReceipts,
+      wine: acc.wine + record.wineReceipts,
+      beer: acc.beer + record.beerReceipts,
+    }), { total: 0, liquor: 0, wine: 0, beer: 0 });
+  };
+
+  const totals = calculateTotals();
+
+  // Prepare revenue mix data based on filtered data
   const revenueData = locationData ? [
-    { name: "Liquor", value: locationData.liquorSales, color: COLORS.liquor },
-    { name: "Wine", value: locationData.wineSales, color: COLORS.wine },
-    { name: "Beer", value: locationData.beerSales, color: COLORS.beer },
+    { name: "Liquor", value: totals.liquor, color: COLORS.liquor },
+    { name: "Wine", value: totals.wine, color: COLORS.wine },
+    { name: "Beer", value: totals.beer, color: COLORS.beer },
   ].filter(item => item.value > 0) : [];
 
   // Get the largest revenue source
@@ -126,8 +168,8 @@ export function PermitReport() {
     item.value > max.value ? item : max, revenueData[0] || { name: "", value: 0 }
   );
 
-  const largestPercentage = locationData?.totalSales 
-    ? ((largestRevenue.value / locationData.totalSales) * 100).toFixed(1)
+  const largestPercentage = totals.total 
+    ? ((largestRevenue.value / totals.total) * 100).toFixed(1)
     : "0";
 
   // Download PDF
@@ -194,6 +236,23 @@ export function PermitReport() {
             data-testid="input-location-name"
           />
         </div>
+
+        {locationData && availableYears.length > 0 && (
+          <div className="w-48">
+            <Label htmlFor="year-filter">Filter by Year</Label>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger id="year-filter" data-testid="select-year-filter">
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {availableYears.map(year => (
+                  <SelectItem key={year} value={year}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {locationData && (
           <Button 
@@ -386,6 +445,71 @@ export function PermitReport() {
             </Card>
           </div>
 
+          {/* Monthly Sales Trend - Professional Chart */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-lg mb-4">
+                Monthly Sales Trend {selectedYear !== "all" && `(${selectedYear})`}
+              </h3>
+              
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart 
+                  data={filteredRecords.slice().reverse().map(record => ({
+                    month: new Date(record.obligationEndDate).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+                    Liquor: record.liquorReceipts,
+                    Wine: record.wineReceipts,
+                    Beer: record.beerReceipts,
+                    Total: record.totalReceipts
+                  }))}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis 
+                    dataKey="month" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => `$${value.toLocaleString()}`}
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px'
+                    }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    iconType="rect"
+                  />
+                  <Bar dataKey="Liquor" fill={COLORS.liquor} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Wine" fill={COLORS.wine} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Beer" fill={COLORS.beer} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+
+              <div className="mt-6 grid grid-cols-3 gap-4 border-t pt-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">${totals.liquor.toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground">Total Liquor Sales</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-red-600">${totals.wine.toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground">Total Wine Sales</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-amber-600">${totals.beer.toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground">Total Beer Sales</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Revenue Mix */}
           <Card>
             <CardContent className="p-6">
@@ -418,7 +542,7 @@ export function PermitReport() {
 
                 <div className="text-center">
                   <p className="text-3xl font-bold mb-2" data-testid="text-total-revenue">
-                    ${locationData.totalSales.toLocaleString()}
+                    ${totals.total.toLocaleString()}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {largestPercentage}% from {largestRevenue.name}
