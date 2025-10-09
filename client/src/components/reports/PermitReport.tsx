@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { LocationSummary } from "@shared/schema";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const COLORS = {
   liquor: "#3b82f6", // blue
@@ -24,10 +25,13 @@ export function PermitReport() {
   const [selectedPermit, setSelectedPermit] = useState<string>("");
   const reportRef = useRef<HTMLDivElement>(null);
 
-  // Search for locations by name
+  // Debounce search query (300ms delay)
+  const debouncedLocationName = useDebounce(locationName, 300);
+
+  // Search for locations by name (uses debounced value)
   const { data: searchResults, isLoading: isSearching } = useQuery<{ locations: LocationSummary[]; total: number }>({
-    queryKey: [`/api/locations/search/by-name?name=${locationName.trim()}`],
-    enabled: locationName.trim().length > 0,
+    queryKey: [`/api/locations/search/by-name?name=${debouncedLocationName.trim()}`],
+    enabled: debouncedLocationName.trim().length > 0,
   });
 
   // Get details for selected location

@@ -10,6 +10,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { X, AlertCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const COLORS = ["#9333ea", "#dc2626", "#f59e0b", "#3b82f6", "#10b981", "#ec4899"];
 
@@ -17,10 +18,13 @@ export function PermitComparison() {
   const [permitNumbers, setPermitNumbers] = useState<string[]>([]);
   const [locationName, setLocationName] = useState("");
 
-  // Search for locations by name (auto-search as user types)
+  // Debounce search query (300ms delay)
+  const debouncedLocationName = useDebounce(locationName, 300);
+
+  // Search for locations by name (uses debounced value)
   const { data: searchResults, isLoading: isSearching } = useQuery<{ locations: LocationSummary[]; total: number }>({
-    queryKey: [`/api/locations/search/by-name?name=${locationName.trim()}`],
-    enabled: locationName.trim().length > 0,
+    queryKey: [`/api/locations/search/by-name?name=${debouncedLocationName.trim()}`],
+    enabled: debouncedLocationName.trim().length > 0,
   });
 
   const permitQueries = useQueries({
