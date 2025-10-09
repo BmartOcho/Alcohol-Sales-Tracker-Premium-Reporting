@@ -51,38 +51,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No user email on file' });
       }
 
-      // Create Stripe customer
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-      });
+      // Get or create Stripe customer (reuse existing if available)
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        });
+        customerId = customer.id;
+      }
 
-      // First create a product and price
-      const product = await stripe.products.create({
-        name: 'Texas Alcohol Sales Map Pro',
-        description: 'Full access to all features and analytics',
-      });
+      // Get or create the product and price (idempotent)
+      // Search for existing product by name
+      const products = await stripe.products.list({ limit: 100 });
+      let product = products.data.find(p => p.name === 'Texas Alcohol Sales Map Pro');
+      
+      if (!product) {
+        product = await stripe.products.create({
+          name: 'Texas Alcohol Sales Map Pro',
+          description: 'Full access to all features and analytics',
+        });
+      }
 
-      const price = await stripe.prices.create({
-        product: product.id,
-        unit_amount: 2000, // $20.00 in cents
-        currency: 'usd',
-        recurring: {
-          interval: 'month',
-        },
-      });
+      // Search for existing price for this product
+      const prices = await stripe.prices.list({ product: product.id, limit: 100 });
+      let price = prices.data.find(p => p.unit_amount === 2000 && p.currency === 'usd' && p.recurring?.interval === 'month');
+      
+      if (!price) {
+        price = await stripe.prices.create({
+          product: product.id,
+          unit_amount: 2000, // $20.00 in cents
+          currency: 'usd',
+          recurring: { interval: 'month' },
+        });
+      }
 
-      // Create subscription
+      // Create subscription using the price
       const subscription = await stripe.subscriptions.create({
-        customer: customer.id,
+        customer: customerId,
         items: [{ price: price.id }],
         payment_behavior: 'default_incomplete',
         payment_settings: { save_default_payment_method: 'on_subscription' },
         expand: ['latest_invoice.payment_intent'],
       });
 
-      // Update user with Stripe info
-      await storage.updateUserStripeInfo(userId, customer.id, subscription.id);
+      // Update user with Stripe info (status remains 'free' until payment confirmed)
+      await storage.updateUserStripeInfo(userId, customerId, subscription.id);
 
       res.json({
         subscriptionId: subscription.id,

@@ -59,6 +59,7 @@ export class MemStorage implements IStorage {
       ...user,
       stripeCustomerId: customerId,
       stripeSubscriptionId: subscriptionId,
+      // Don't set status to 'active' here - wait for payment confirmation
       updatedAt: new Date(),
     };
     this.users.set(userId, updated);
@@ -156,7 +157,7 @@ export class DatabaseStorage implements IStorage {
       .set({
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
-        subscriptionStatus: 'active',
+        // Don't set status to 'active' here - wait for payment confirmation via webhook
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))
