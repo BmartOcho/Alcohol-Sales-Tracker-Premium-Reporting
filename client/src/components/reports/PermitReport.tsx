@@ -103,8 +103,8 @@ export function PermitReport() {
     const monthsSinceLastRecord = (now.getTime() - latestRecordDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
     const isInactive = monthsSinceLastRecord > 6;
     
-    // Use latest record date from filtered data as reference
-    const referenceDate = isInactive ? latestRecordDate : (selectedYear !== "all" ? latestRecordDate : now);
+    // Always use latest record date as reference (data is only available up to previous month)
+    const referenceDate = latestRecordDate;
 
     // Helper to get sales for date range
     const getSalesForPeriod = (monthsAgo: number) => {
@@ -125,8 +125,28 @@ export function PermitReport() {
     };
 
     // Calculate metrics for different periods
-    const recentMonth = getSalesForPeriod(1);
-    const previousMonth = getSalesForPeriod(2).total - recentMonth.total;
+    // For latest month, get only the single most recent month (not a trailing window)
+    const latestMonthRecords = records.filter(r => {
+      const recordDate = new Date(r.obligationEndDate);
+      return recordDate.getMonth() === referenceDate.getMonth() && 
+             recordDate.getFullYear() === referenceDate.getFullYear();
+    });
+    const recentMonth = {
+      total: latestMonthRecords.reduce((sum, r) => sum + r.totalReceipts, 0),
+      liquor: latestMonthRecords.reduce((sum, r) => sum + r.liquorReceipts, 0),
+      wine: latestMonthRecords.reduce((sum, r) => sum + r.wineReceipts, 0),
+      beer: latestMonthRecords.reduce((sum, r) => sum + r.beerReceipts, 0),
+    };
+    
+    // Get previous month for comparison
+    const prevMonthDate = new Date(referenceDate);
+    prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+    const previousMonthRecords = records.filter(r => {
+      const recordDate = new Date(r.obligationEndDate);
+      return recordDate.getMonth() === prevMonthDate.getMonth() && 
+             recordDate.getFullYear() === prevMonthDate.getFullYear();
+    });
+    const previousMonth = previousMonthRecords.reduce((sum, r) => sum + r.totalReceipts, 0);
     const recentMonthChange = previousMonth > 0 ? ((recentMonth.total - previousMonth) / previousMonth) * 100 : 0;
 
     const pastQuarter = getSalesForPeriod(3);
@@ -333,10 +353,10 @@ export function PermitReport() {
           {/* Header Metrics */}
           <div className="grid grid-cols-5 gap-4">
             <MetricCard
-              label={metrics.isInactive ? "Final Month" : "Recent Month"}
+              label={metrics.isInactive ? "Final Month" : "Latest Month"}
               value={metrics.recentMonth.value}
               change={metrics.recentMonth.change}
-              sublabel={metrics.isInactive ? metrics.latestRecordDate : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              sublabel={metrics.latestRecordDate}
               data-testid="metric-recent-month"
             />
             <MetricCard
