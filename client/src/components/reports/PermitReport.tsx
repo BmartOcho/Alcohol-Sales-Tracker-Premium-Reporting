@@ -335,7 +335,7 @@ export function PermitReport() {
                     frameBorder="0"
                     style={{ border: 0 }}
                     referrerPolicy="no-referrer-when-downgrade"
-                    src={`https://maps.google.com/maps?q=${encodeURIComponent(locationData.locationAddress + ', ' + locationData.locationCity + ', TX ' + locationData.locationZip)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                    src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}&q=${encodeURIComponent(locationData.locationAddress + ', ' + locationData.locationCity + ', TX ' + locationData.locationZip)}&zoom=15`}
                     allowFullScreen
                     loading="lazy"
                     title="Location Map"
