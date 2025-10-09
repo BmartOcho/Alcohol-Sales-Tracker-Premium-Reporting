@@ -6,6 +6,11 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Updates (January 2025)
+- **Authentication System**: Implemented Replit Auth (OIDC) for user login with Google, GitHub, and email/password support. Session management via PostgreSQL with automatic token refresh.
+- **Subscription & Payments**: Integrated Stripe payment system with $20/month Pro subscription. Secure payment flow with status validation, customer reuse, and proper error handling for expired/canceled subscriptions.
+- **SEO Optimization**: Comprehensive SEO implementation including meta tags (Open Graph, Twitter Cards), structured data (JSON-LD), sitemap.xml, and robots.txt for search engine indexing. All pages have unique, descriptive titles and meta descriptions optimized for search visibility.
+
 ## System Architecture
 
 ### Frontend Architecture
