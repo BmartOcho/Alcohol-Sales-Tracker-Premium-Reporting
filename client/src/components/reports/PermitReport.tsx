@@ -1,19 +1,30 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { AlertCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { AlertCircle, Download, TrendingUp, TrendingDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
+const COLORS = {
+  liquor: "#3b82f6", // blue
+  wine: "#dc2626", // red
+  beer: "#f59e0b", // amber
+};
 
 export function PermitReport() {
   const [locationName, setLocationName] = useState("");
   const [selectedPermit, setSelectedPermit] = useState<string>("");
+  const reportRef = useRef<HTMLDivElement>(null);
 
-  // Search for locations by name (auto-search as user types)
+  // Search for locations by name
   const { data: searchResults, isLoading: isSearching } = useQuery<{ locations: LocationSummary[]; total: number }>({
     queryKey: [`/api/locations/search/by-name?name=${locationName.trim()}`],
     enabled: locationName.trim().length > 0,
@@ -29,37 +40,161 @@ export function PermitReport() {
     setSelectedPermit(permitNumber);
   };
 
-  // Prepare chart data from monthly records
-  const chartData = locationData?.monthlyRecords?.map(record => ({
-    date: new Date(record.obligationEndDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-    liquor: record.liquorReceipts,
-    wine: record.wineReceipts,
-    beer: record.beerReceipts,
-    total: record.totalReceipts,
-  })) || [];
+  // Calculate time period metrics
+  const calculatePeriodMetrics = () => {
+    if (!locationData?.monthlyRecords) return null;
+
+    const now = new Date();
+    const records = locationData.monthlyRecords;
+
+    // Helper to get sales for date range
+    const getSalesForPeriod = (monthsAgo: number) => {
+      const startDate = new Date(now);
+      startDate.setMonth(startDate.getMonth() - monthsAgo);
+      
+      const periodRecords = records.filter(r => {
+        const recordDate = new Date(r.obligationEndDate);
+        return recordDate >= startDate;
+      });
+
+      const total = periodRecords.reduce((sum, r) => sum + r.totalReceipts, 0);
+      const liquor = periodRecords.reduce((sum, r) => sum + r.liquorReceipts, 0);
+      const wine = periodRecords.reduce((sum, r) => sum + r.wineReceipts, 0);
+      const beer = periodRecords.reduce((sum, r) => sum + r.beerReceipts, 0);
+
+      return { total, liquor, wine, beer };
+    };
+
+    // Calculate metrics for different periods
+    const recentMonth = getSalesForPeriod(1);
+    const previousMonth = getSalesForPeriod(2).total - recentMonth.total;
+    const recentMonthChange = previousMonth > 0 ? ((recentMonth.total - previousMonth) / previousMonth) * 100 : 0;
+
+    const pastQuarter = getSalesForPeriod(3);
+    const previousQuarter = getSalesForPeriod(6).total - pastQuarter.total;
+    const quarterChange = previousQuarter > 0 ? ((pastQuarter.total - previousQuarter) / previousQuarter) * 100 : 0;
+
+    const past6Months = getSalesForPeriod(6);
+    const previous6Months = getSalesForPeriod(12).total - past6Months.total;
+    const sixMonthsChange = previous6Months > 0 ? ((past6Months.total - previous6Months) / previous6Months) * 100 : 0;
+
+    const pastYear = getSalesForPeriod(12);
+    const previousYear = getSalesForPeriod(24).total - pastYear.total;
+    const yearChange = previousYear > 0 ? ((pastYear.total - previousYear) / previousYear) * 100 : 0;
+
+    const past2Years = getSalesForPeriod(24);
+
+    return {
+      recentMonth: { value: recentMonth.total, change: recentMonthChange },
+      pastQuarter: { value: pastQuarter.total, change: quarterChange },
+      past6Months: { value: past6Months.total, change: sixMonthsChange },
+      pastYear: { value: pastYear.total, change: yearChange },
+      past2Years: { value: past2Years.total },
+      breakdown: {
+        liquor: locationData.liquorSales,
+        wine: locationData.wineSales,
+        beer: locationData.beerSales,
+      }
+    };
+  };
+
+  const metrics = calculatePeriodMetrics();
+
+  // Prepare revenue mix data
+  const revenueData = locationData ? [
+    { name: "Liquor", value: locationData.liquorSales, color: COLORS.liquor },
+    { name: "Wine", value: locationData.wineSales, color: COLORS.wine },
+    { name: "Beer", value: locationData.beerSales, color: COLORS.beer },
+  ].filter(item => item.value > 0) : [];
+
+  // Get the largest revenue source
+  const largestRevenue = revenueData.reduce((max, item) => 
+    item.value > max.value ? item : max, revenueData[0] || { name: "", value: 0 }
+  );
+
+  const largestPercentage = locationData?.totalSales 
+    ? ((largestRevenue.value / locationData.totalSales) * 100).toFixed(1)
+    : "0";
+
+  // Download PDF
+  const downloadPDF = async () => {
+    if (!reportRef.current || !locationData) return;
+
+    const element = reportRef.current;
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+    pdf.save(`${locationData.locationName.replace(/[^a-z0-9]/gi, '_')}_report.pdf`);
+  };
 
   const showSearchResults = searchResults && searchResults.locations.length > 0 && !selectedPermit;
   const showNoResults = locationName.trim() && !isSearching && searchResults?.locations.length === 0;
 
+  // Calculate permit age
+  const getPermitAge = () => {
+    if (!locationData?.monthlyRecords || locationData.monthlyRecords.length === 0) return "N/A";
+    
+    const oldestRecord = locationData.monthlyRecords[locationData.monthlyRecords.length - 1];
+    const oldestDate = new Date(oldestRecord.obligationEndDate);
+    const now = new Date();
+    
+    const years = now.getFullYear() - oldestDate.getFullYear();
+    const months = now.getMonth() - oldestDate.getMonth();
+    const totalMonths = years * 12 + months;
+    
+    const displayYears = Math.floor(totalMonths / 12);
+    const displayMonths = totalMonths % 12;
+    
+    if (displayYears > 0 && displayMonths > 0) {
+      return `${displayYears} years, ${displayMonths} months`;
+    } else if (displayYears > 0) {
+      return `${displayYears} year${displayYears > 1 ? 's' : ''}`;
+    } else {
+      return `${displayMonths} month${displayMonths > 1 ? 's' : ''}`;
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <Label htmlFor="location-name">Location Name</Label>
-        <Input
-          id="location-name"
-          placeholder="Enter location name"
-          value={locationName}
-          onChange={(e) => {
-            setLocationName(e.target.value);
-            setSelectedPermit(""); // Reset selection when typing
-          }}
-          data-testid="input-location-name"
-        />
+      <div className="flex gap-4 items-end">
+        <div className="flex-1">
+          <Label htmlFor="location-name">Search Location</Label>
+          <Input
+            id="location-name"
+            placeholder="Enter location name"
+            value={locationName}
+            onChange={(e) => {
+              setLocationName(e.target.value);
+              setSelectedPermit("");
+            }}
+            data-testid="input-location-name"
+          />
+        </div>
+
+        {locationData && (
+          <Button 
+            onClick={downloadPDF} 
+            variant="default" 
+            className="gap-2"
+            data-testid="button-download-pdf"
+          >
+            <Download className="h-4 w-4" />
+            Download PDF
+          </Button>
+        )}
       </div>
 
-      {isSearching && (
-        <Skeleton className="h-20 w-full" />
-      )}
+      {isSearching && <Skeleton className="h-20 w-full" />}
 
       {showSearchResults && (
         <div className="border rounded-lg p-4 bg-muted/20">
@@ -104,86 +239,197 @@ export function PermitReport() {
         </Alert>
       )}
 
-      {locationData && (
-        <div className="space-y-6">
-          <div className="border rounded-lg p-4 bg-muted/20">
-            <h3 className="font-semibold text-lg mb-4" data-testid="text-location-name">{locationData.locationName}</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Address</p>
-                <p className="font-medium">{locationData.locationAddress}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">City</p>
-                <p className="font-medium">{locationData.locationCity}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">County</p>
-                <p className="font-medium">{locationData.locationCounty}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Permit Number</p>
-                <p className="font-medium">{locationData.permitNumber}</p>
-              </div>
-            </div>
+      {locationData && metrics && (
+        <div ref={reportRef} className="space-y-6 bg-background p-6 rounded-lg">
+          {/* Header Metrics */}
+          <div className="grid grid-cols-5 gap-4">
+            <MetricCard
+              label="Recent Month"
+              value={metrics.recentMonth.value}
+              change={metrics.recentMonth.change}
+              sublabel={new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              data-testid="metric-recent-month"
+            />
+            <MetricCard
+              label="Past Quarter"
+              value={metrics.pastQuarter.value}
+              change={metrics.pastQuarter.change}
+              sublabel="Last 3 Months"
+              data-testid="metric-past-quarter"
+            />
+            <MetricCard
+              label="Past 6 Months"
+              value={metrics.past6Months.value}
+              change={metrics.past6Months.change}
+              sublabel="Last 6 Months"
+              data-testid="metric-past-6-months"
+            />
+            <MetricCard
+              label="Past Year"
+              value={metrics.pastYear.value}
+              change={metrics.pastYear.change}
+              sublabel="Last 12 Months"
+              data-testid="metric-past-year"
+            />
+            <MetricCard
+              label="Past 2 Years"
+              value={metrics.past2Years.value}
+              sublabel="Last 24 Months"
+              data-testid="metric-past-2-years"
+            />
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
-            <div className="border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Total Sales</p>
-              <p className="text-2xl font-bold" data-testid="text-total-sales">${locationData.totalSales.toLocaleString()}</p>
-            </div>
-            <div className="border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Liquor Sales</p>
-              <p className="text-2xl font-bold text-purple-600">${locationData.liquorSales.toLocaleString()}</p>
-            </div>
-            <div className="border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Wine Sales</p>
-              <p className="text-2xl font-bold text-red-600">${locationData.wineSales.toLocaleString()}</p>
-            </div>
-            <div className="border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Beer Sales</p>
-              <p className="text-2xl font-bold text-amber-600">${locationData.beerSales.toLocaleString()}</p>
-            </div>
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* Location Section */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-lg">Location</h3>
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationData.locationAddress + ', ' + locationData.locationCity + ', TX')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    View Google Map
+                  </a>
+                </div>
+                
+                <div className="space-y-2 text-sm mb-4">
+                  <p className="font-medium">{locationData.locationName}</p>
+                  <p className="text-muted-foreground">{locationData.locationAddress}</p>
+                  <p className="text-muted-foreground">{locationData.locationCity}, TX {locationData.locationZip}</p>
+                </div>
+
+                {/* Map placeholder - coordinates display */}
+                <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-sm font-medium mb-2">Location Coordinates</p>
+                    <p className="text-xs text-muted-foreground">Lat: {locationData.lat.toFixed(6)}</p>
+                    <p className="text-xs text-muted-foreground">Lng: {locationData.lng.toFixed(6)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Taxpayer & Permit Info */}
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-lg mb-4">Taxpayer & Permit Info</h3>
+                
+                <div className="space-y-4">
+                  <div className="border-b pb-3">
+                    <p className="text-sm text-muted-foreground mb-1">Taxpayer Info</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Taxpayer Name</p>
+                        <p className="text-sm font-medium">{locationData.monthlyRecords?.[0]?.taxpayerName || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Location Number</p>
+                        <p className="text-sm font-medium">#{locationData.permitNumber.slice(-4)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-3">Permit Info</p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Permit Number</span>
+                        <span className="text-sm font-medium">{locationData.permitNumber}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Time Since Issue</span>
+                        <span className="text-sm font-medium">{getPermitAge()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {chartData.length > 0 && (
-            <>
-              <div>
-                <h4 className="font-semibold mb-4">Sales Over Time</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
-                    <Legend />
-                    <Line type="monotone" dataKey="liquor" stroke="#9333ea" name="Liquor" />
-                    <Line type="monotone" dataKey="wine" stroke="#dc2626" name="Wine" />
-                    <Line type="monotone" dataKey="beer" stroke="#f59e0b" name="Beer" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+          {/* Revenue Mix */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-lg mb-4">Revenue Mix</h3>
+              
+              <div className="flex items-center gap-8">
+                <div className="flex-1">
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie
+                        data={revenueData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {revenueData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => `$${value.toLocaleString()}`}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
 
-              <div>
-                <h4 className="font-semibold mb-4">Sales by Category</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
-                    <Legend />
-                    <Bar dataKey="liquor" fill="#9333ea" name="Liquor" />
-                    <Bar dataKey="wine" fill="#dc2626" name="Wine" />
-                    <Bar dataKey="beer" fill="#f59e0b" name="Beer" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="text-center">
+                  <p className="text-3xl font-bold mb-2" data-testid="text-total-revenue">
+                    ${locationData.totalSales.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {largestPercentage}% from {largestRevenue.name}
+                  </p>
+                </div>
               </div>
-            </>
-          )}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
+  );
+}
+
+// Metric Card Component
+interface MetricCardProps {
+  label: string;
+  value: number;
+  change?: number;
+  sublabel: string;
+  "data-testid"?: string;
+}
+
+function MetricCard({ label, value, change, sublabel, ...props }: MetricCardProps) {
+  const hasChange = change !== undefined;
+  const isPositive = change && change > 0;
+  const isNegative = change && change < 0;
+
+  return (
+    <Card {...props}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <p className="text-sm text-muted-foreground">{label}</p>
+          {hasChange && (
+            <div className={`flex items-center gap-1 text-xs ${
+              isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-muted-foreground'
+            }`}>
+              {isPositive && <TrendingUp className="h-3 w-3" />}
+              {isNegative && <TrendingDown className="h-3 w-3" />}
+              <span>{Math.abs(change).toFixed(1)}%</span>
+            </div>
+          )}
+        </div>
+        <p className="text-2xl font-bold mb-1">${value.toLocaleString()}</p>
+        <p className="text-xs text-muted-foreground">{sublabel}</p>
+      </CardContent>
+    </Card>
   );
 }
