@@ -8,18 +8,21 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 
 ## Recent Changes
 
-### October 9, 2025 (Latest - Hybrid Database + API Architecture)
-- **Hybrid Data Architecture**: Historical database + real-time API for current year
-  - **Historical Data (2015-2024)**: 1.7M+ records stored in PostgreSQL database
-    - Instant access with 1-hour cache (3-4s first load, 30-40ms cached)
-    - Import script supports year ranges: `tsx server/scripts/importData.ts 2015 2024`
-  - **Current Year (2025)**: Real-time fetching from Texas Open Data Portal API
-    - 15-minute cache TTL (updated monthly, stays fresh)
-    - Request deduplication prevents duplicate API calls
-  - **Performance**: 100x faster than pure API approach
+### October 9, 2025 (Latest - Fully Database-Backed Architecture)
+- **All Data in PostgreSQL**: All years (2015-2025) stored in database for instant access
+  - **Database Storage**: 1.8M+ monthly sales records across all years
+  - **SQL Optimization**: GROUP BY aggregation for location summaries (3-4s first load, 20-40ms cached)
+  - **Import Script**: Supports single years or ranges: `tsx server/scripts/importData.ts 2025` or `tsx server/scripts/importData.ts 2015 2024`
+  - **Performance**: 100x faster than API approach, consistent across all years
+- **Optimized Query Architecture**:
+  - Step 1: SQL GROUP BY aggregation (SUM receipts, MAX date by permit_number)
+  - Step 2: Fetch monthly records for detailed history
+  - Step 3: Combine aggregated data with monthly details
+  - 1-hour cache prevents repeated database queries
 - **Year Selector**: Shows all available years (2015-2025)
-  - Default: 2025 (current year with real-time data)
-  - Historical years load instantly from database
+  - Default: 2025 (most recent year)
+  - All years load consistently from database (3-4s first, <50ms cached)
+- **Data Updates**: Run import script monthly when TABC publishes new data
 - **Cache Management**: POST `/api/locations/refresh` endpoint clears all caches
 - **All features work across all years**: search, filtering, county selection, location details
 - **Map Marker Clustering**: Solved performance issues with rendering 21,000+ markers
