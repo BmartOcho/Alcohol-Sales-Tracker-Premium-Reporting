@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { InteractiveMap } from "@/components/InteractiveMap";
 import { LocationDetailModal } from "@/components/LocationDetailModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -8,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Star, AlertCircle, Calendar, Search, MapPin, X } from "lucide-react";
+import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
 
@@ -206,7 +207,15 @@ export default function Home() {
               <Star className="h-6 w-6 text-primary" />
               <h1 className="text-xl font-bold">Texas Alcohol Sales</h1>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <Link href="/reports">
+                <Button variant="outline" size="sm" data-testid="button-reports">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Reports
+                </Button>
+              </Link>
+              <ThemeToggle />
+            </div>
           </div>
           
           <div className="space-y-2">
