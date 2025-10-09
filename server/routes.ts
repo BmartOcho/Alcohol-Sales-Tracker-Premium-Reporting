@@ -38,13 +38,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // If user already has a subscription, return the existing one
+      // If user already has a subscription, check its status
       if (user.stripeSubscriptionId) {
-        const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
-        return res.json({
-          subscriptionId: subscription.id,
-          clientSecret: (subscription.latest_invoice as any)?.payment_intent?.client_secret,
-        });
+        const subscription = await stripe.subscriptions.retrieve(
+          user.stripeSubscriptionId,
+          { expand: ['latest_invoice.payment_intent'] }
+        );
+        
+        // Check if already active
+        if (subscription.status === 'active') {
+          return res.status(400).json({ message: 'Already subscribed' });
+        }
+        
+        // If subscription is incomplete (awaiting payment), return it
+        if (subscription.status === 'incomplete') {
+          const clientSecret = (subscription.latest_invoice as any)?.payment_intent?.client_secret;
+          if (clientSecret) {
+            return res.json({
+              subscriptionId: subscription.id,
+              clientSecret,
+            });
+          }
+        }
+        
+        // If subscription is canceled, expired, or otherwise unusable, clear it
+        // and create a new one (fall through to creation logic)
+        await storage.clearStripeSubscription(userId);
+        user = await storage.getUser(userId);
       }
 
       if (!user.email) {

@@ -8,6 +8,7 @@ export interface IStorage {
   // Stripe subscription operations (from blueprint:javascript_stripe)
   updateUserStripeInfo(userId: string, customerId: string, subscriptionId: string): Promise<User>;
   updateSubscriptionStatus(userId: string, status: string, endsAt?: Date): Promise<User>;
+  clearStripeSubscription(userId: string): Promise<User>;
   // Location operations
   getLocations(startDate?: string, endDate?: string): Promise<LocationSummary[]>;
   getLocationByPermit(permitNumber: string): Promise<LocationSummary | null>;
@@ -73,6 +74,20 @@ export class MemStorage implements IStorage {
       ...user,
       subscriptionStatus: status,
       subscriptionEndsAt: endsAt || null,
+      updatedAt: new Date(),
+    };
+    this.users.set(userId, updated);
+    return updated;
+  }
+
+  async clearStripeSubscription(userId: string): Promise<User> {
+    const user = this.users.get(userId);
+    if (!user) throw new Error('User not found');
+    const updated = {
+      ...user,
+      stripeSubscriptionId: null,
+      subscriptionStatus: 'free',
+      subscriptionEndsAt: null,
       updatedAt: new Date(),
     };
     this.users.set(userId, updated);
@@ -173,6 +188,22 @@ export class DatabaseStorage implements IStorage {
       .set({
         subscriptionStatus: status,
         subscriptionEndsAt: endsAt || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    if (!user) throw new Error('User not found');
+    return user;
+  }
+
+  async clearStripeSubscription(userId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        stripeSubscriptionId: null,
+        subscriptionStatus: 'free',
+        subscriptionEndsAt: null,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))
