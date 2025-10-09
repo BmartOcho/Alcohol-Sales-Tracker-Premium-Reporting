@@ -277,6 +277,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sitemap.xml for SEO
+  app.get("/sitemap.xml", (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/reports</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/subscribe</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>`;
+    
+    res.header('Content-Type', 'application/xml');
+    res.send(sitemap);
+  });
+
+  // Robots.txt for SEO
+  app.get("/robots.txt", (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const robots = `User-agent: *
+Allow: /
+Sitemap: ${baseUrl}/sitemap.xml`;
+    
+    res.header('Content-Type', 'text/plain');
+    res.send(robots);
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
