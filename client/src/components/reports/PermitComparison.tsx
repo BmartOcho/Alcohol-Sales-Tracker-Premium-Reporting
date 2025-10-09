@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Plus, X, AlertCircle, Search } from "lucide-react";
+import { X, AlertCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
 
@@ -16,12 +16,11 @@ const COLORS = ["#9333ea", "#dc2626", "#f59e0b", "#3b82f6", "#10b981", "#ec4899"
 export function PermitComparison() {
   const [permitNumbers, setPermitNumbers] = useState<string[]>([]);
   const [locationName, setLocationName] = useState("");
-  const [searchedName, setSearchedName] = useState("");
 
-  // Search for locations by name
+  // Search for locations by name (auto-search as user types)
   const { data: searchResults, isLoading: isSearching } = useQuery<{ locations: LocationSummary[]; total: number }>({
-    queryKey: [`/api/locations/search/by-name?name=${searchedName}`],
-    enabled: !!searchedName,
+    queryKey: [`/api/locations/search/by-name?name=${locationName.trim()}`],
+    enabled: locationName.trim().length > 0,
   });
 
   const permitQueries = useQueries({
@@ -31,15 +30,10 @@ export function PermitComparison() {
     })),
   });
 
-  const handleSearch = () => {
-    setSearchedName(locationName.trim());
-  };
-
   const handleAddLocation = (permitNumber: string) => {
     if (permitNumber && !permitNumbers.includes(permitNumber) && permitNumbers.length < 6) {
       setPermitNumbers([...permitNumbers, permitNumber]);
       setLocationName("");
-      setSearchedName("");
     }
   };
 
@@ -80,32 +74,21 @@ export function PermitComparison() {
 
   const isLoading = permitQueries.some(q => q.isLoading);
   const showSearchResults = searchResults && searchResults.locations.length > 0;
-  const showNoResults = searchedName && !isSearching && searchResults?.locations.length === 0;
+  const showNoResults = locationName.trim() && !isSearching && searchResults?.locations.length === 0;
 
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <div className="flex gap-4 items-end">
-          <div className="flex-1">
-            <Label htmlFor="location-name">Search Location to Add (max 6)</Label>
-            <Input
-              id="location-name"
-              placeholder="Enter location name"
-              value={locationName}
-              onChange={(e) => setLocationName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              disabled={permitNumbers.length >= 6}
-              data-testid="input-location-name"
-            />
-          </div>
-          <Button 
-            onClick={handleSearch} 
-            disabled={!locationName.trim() || permitNumbers.length >= 6}
-            data-testid="button-search-location"
-          >
-            <Search className="h-4 w-4 mr-2" />
-            Search
-          </Button>
+        <div>
+          <Label htmlFor="location-name">Search Location to Add (max 6)</Label>
+          <Input
+            id="location-name"
+            placeholder="Enter location name"
+            value={locationName}
+            onChange={(e) => setLocationName(e.target.value)}
+            disabled={permitNumbers.length >= 6}
+            data-testid="input-location-name"
+          />
         </div>
 
         {isSearching && (
@@ -138,7 +121,7 @@ export function PermitComparison() {
           <Alert data-testid="alert-no-results">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              No locations found matching "{searchedName}". Please try a different search term.
+              No locations found matching "{locationName.trim()}". Please try a different search term.
             </AlertDescription>
           </Alert>
         )}

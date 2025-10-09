@@ -1,24 +1,22 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Search, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
 
 export function PermitReport() {
   const [locationName, setLocationName] = useState("");
-  const [searchedName, setSearchedName] = useState("");
   const [selectedPermit, setSelectedPermit] = useState<string>("");
 
-  // Search for locations by name
+  // Search for locations by name (auto-search as user types)
   const { data: searchResults, isLoading: isSearching } = useQuery<{ locations: LocationSummary[]; total: number }>({
-    queryKey: [`/api/locations/search/by-name?name=${searchedName}`],
-    enabled: !!searchedName,
+    queryKey: [`/api/locations/search/by-name?name=${locationName.trim()}`],
+    enabled: locationName.trim().length > 0,
   });
 
   // Get details for selected location
@@ -26,11 +24,6 @@ export function PermitReport() {
     queryKey: ["/api/locations", selectedPermit],
     enabled: !!selectedPermit,
   });
-
-  const handleSearch = () => {
-    setSearchedName(locationName.trim());
-    setSelectedPermit(""); // Reset selection when new search
-  };
 
   const handleSelectLocation = (permitNumber: string) => {
     setSelectedPermit(permitNumber);
@@ -46,26 +39,22 @@ export function PermitReport() {
   })) || [];
 
   const showSearchResults = searchResults && searchResults.locations.length > 0 && !selectedPermit;
-  const showNoResults = searchedName && !isSearching && searchResults?.locations.length === 0;
+  const showNoResults = locationName.trim() && !isSearching && searchResults?.locations.length === 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-4 items-end">
-        <div className="flex-1">
-          <Label htmlFor="location-name">Location Name</Label>
-          <Input
-            id="location-name"
-            placeholder="Enter location name (e.g., Specs, HEB, Walmart)"
-            value={locationName}
-            onChange={(e) => setLocationName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            data-testid="input-location-name"
-          />
-        </div>
-        <Button onClick={handleSearch} disabled={!locationName.trim()} data-testid="button-search-location">
-          <Search className="h-4 w-4 mr-2" />
-          Search
-        </Button>
+      <div>
+        <Label htmlFor="location-name">Location Name</Label>
+        <Input
+          id="location-name"
+          placeholder="Enter location name"
+          value={locationName}
+          onChange={(e) => {
+            setLocationName(e.target.value);
+            setSelectedPermit(""); // Reset selection when typing
+          }}
+          data-testid="input-location-name"
+        />
       </div>
 
       {isSearching && (
@@ -94,7 +83,7 @@ export function PermitReport() {
         <Alert data-testid="alert-no-results">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            No locations found matching "{searchedName}". Please try a different search term.
+            No locations found matching "{locationName.trim()}". Please try a different search term.
           </AlertDescription>
         </Alert>
       )}

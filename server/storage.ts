@@ -83,7 +83,7 @@ export class MemStorage implements IStorage {
 
 import { db } from "./db";
 import { monthlySales, users } from "@shared/schema";
-import { and, between, eq, desc, sql } from "drizzle-orm";
+import { and, between, eq, desc, sql, inArray } from "drizzle-orm";
 
 export class DatabaseStorage implements IStorage {
   private locationCache: Map<string, { data: LocationSummary[], timestamp: number }> = new Map();
@@ -362,7 +362,7 @@ export class DatabaseStorage implements IStorage {
     const monthlyRecords = await db
       .select()
       .from(monthlySales)
-      .where(sql`${monthlySales.permitNumber} = ANY(${permitNumbers})`)
+      .where(inArray(monthlySales.permitNumber, permitNumbers))
       .orderBy(desc(monthlySales.obligationEndDate));
 
     // Group monthly records by permit number
