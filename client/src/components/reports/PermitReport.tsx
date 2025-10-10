@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from "recharts";
-import { AlertCircle, Download, TrendingUp, TrendingDown } from "lucide-react";
+import { AlertCircle, Download, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
 import jsPDF from "jspdf";
@@ -252,16 +252,21 @@ export function PermitReport() {
       <div className="flex gap-4 items-end">
         <div className="flex-1">
           <Label htmlFor="location-name">Search Location</Label>
-          <Input
-            id="location-name"
-            placeholder="Enter location name"
-            value={locationName}
-            onChange={(e) => {
-              setLocationName(e.target.value);
-              setSelectedPermit("");
-            }}
-            data-testid="input-location-name"
-          />
+          <div className="relative">
+            <Input
+              id="location-name"
+              placeholder="Enter location name"
+              value={locationName}
+              onChange={(e) => {
+                setLocationName(e.target.value);
+                setSelectedPermit("");
+              }}
+              data-testid="input-location-name"
+            />
+            {isSearching && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </div>
         </div>
 
         {locationData && availableYears.length > 0 && (

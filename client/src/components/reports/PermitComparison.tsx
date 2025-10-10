@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { X, AlertCircle } from "lucide-react";
+import { X, AlertCircle, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -85,14 +85,19 @@ export function PermitComparison() {
       <div className="space-y-4">
         <div>
           <Label htmlFor="location-name">Search Location to Add (max 6)</Label>
-          <Input
-            id="location-name"
-            placeholder="Enter location name"
-            value={locationName}
-            onChange={(e) => setLocationName(e.target.value)}
-            disabled={permitNumbers.length >= 6}
-            data-testid="input-location-name"
-          />
+          <div className="relative">
+            <Input
+              id="location-name"
+              placeholder="Enter location name"
+              value={locationName}
+              onChange={(e) => setLocationName(e.target.value)}
+              disabled={permitNumbers.length >= 6}
+              data-testid="input-location-name"
+            />
+            {isSearching && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </div>
         </div>
 
         {isSearching && (

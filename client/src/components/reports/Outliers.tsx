@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, TrendingUp } from "lucide-react";
+import { AlertCircle, TrendingUp, Loader2 } from "lucide-react";
 import type { LocationSummary } from "@shared/schema";
 
 const COUNTY_CODE_TO_NAME: Record<string, string> = {
@@ -193,7 +193,10 @@ export function Outliers() {
         </div>
 
         <div>
-          <Label>Year</Label>
+          <Label className="flex items-center gap-2">
+            Year
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          </Label>
           <Select value={selectedYear} onValueChange={setSelectedYear} data-testid="select-year">
             <SelectTrigger>
               <SelectValue />
