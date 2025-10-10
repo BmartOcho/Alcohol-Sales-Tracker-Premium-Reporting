@@ -112,7 +112,21 @@ export function Outliers() {
   const [endDate, setEndDate] = useState("2024-12-31");
   const [minRevenue, setMinRevenue] = useState("10000");
 
-  // Build query parameters based on area type
+  // Fetch ALL locations for populating city/zip dropdowns (without area filter)
+  const allLocationsParams = useMemo(() => {
+    const params = new URLSearchParams();
+    params.append('startDate', startDate);
+    params.append('endDate', endDate);
+    params.append('limit', '10000');
+    return params.toString();
+  }, [startDate, endDate]);
+
+  const { data: allLocationsData } = useQuery<{ locations: LocationSummary[]; total: number }>({
+    queryKey: [`/api/locations?${allLocationsParams}`],
+    enabled: !!startDate && !!endDate,
+  });
+
+  // Build query parameters based on area type for filtered results
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();
     params.append('startDate', startDate);
@@ -229,18 +243,18 @@ export function Outliers() {
     return { outliers: results, areaStats: stats, areaName: name };
   }, [locationsData, areaType, areaValue]);
 
-  // Get unique cities and zips for dropdowns
+  // Get unique cities and zips for dropdowns from ALL locations
   const { uniqueCities, uniqueZips } = useMemo(() => {
-    if (!locationsData?.locations) return { uniqueCities: [], uniqueZips: [] };
+    if (!allLocationsData?.locations) return { uniqueCities: [], uniqueZips: [] };
     
-    const cities = new Set(locationsData.locations.map(l => l.locationCity).filter(Boolean));
-    const zips = new Set(locationsData.locations.map(l => l.locationZip).filter(Boolean));
+    const cities = new Set(allLocationsData.locations.map(l => l.locationCity).filter(Boolean));
+    const zips = new Set(allLocationsData.locations.map(l => l.locationZip).filter(Boolean));
     
     return {
       uniqueCities: Array.from(cities).sort(),
       uniqueZips: Array.from(zips).sort()
     };
-  }, [locationsData]);
+  }, [allLocationsData]);
 
   const availableCounties = Object.entries(COUNTY_CODE_TO_NAME)
     .map(([code, name]) => ({ code, name }))
@@ -253,10 +267,15 @@ export function Outliers() {
           <div>
             <Label>Area Type</Label>
             <Select value={areaType} onValueChange={(value) => {
-              setAreaType(value as AreaType);
-              if (value === "county") setAreaValue("101");
-              else if (value === "city" && uniqueCities.length > 0) setAreaValue(uniqueCities[0]);
-              else if (value === "zip" && uniqueZips.length > 0) setAreaValue(uniqueZips[0]);
+              const newType = value as AreaType;
+              setAreaType(newType);
+              if (newType === "county") {
+                setAreaValue("101"); // Harris County
+              } else if (newType === "city") {
+                setAreaValue(uniqueCities.length > 0 ? uniqueCities[0] : "");
+              } else if (newType === "zip") {
+                setAreaValue(uniqueZips.length > 0 ? uniqueZips[0] : "");
+              }
             }} data-testid="select-area-type">
               <SelectTrigger>
                 <SelectValue />
@@ -285,29 +304,37 @@ export function Outliers() {
                 </SelectContent>
               </Select>
             ) : areaType === "city" ? (
-              <Select value={areaValue} onValueChange={setAreaValue} data-testid="select-area-value">
+              <Select value={areaValue} onValueChange={setAreaValue} data-testid="select-area-value" disabled={uniqueCities.length === 0}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder={uniqueCities.length === 0 ? "Loading cities..." : "Select a city"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {uniqueCities.map(city => (
-                    <SelectItem key={city} value={city}>
-                      {city}
-                    </SelectItem>
-                  ))}
+                  {uniqueCities.length > 0 ? (
+                    uniqueCities.map(city => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="none" disabled>No cities available</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             ) : (
-              <Select value={areaValue} onValueChange={setAreaValue} data-testid="select-area-value">
+              <Select value={areaValue} onValueChange={setAreaValue} data-testid="select-area-value" disabled={uniqueZips.length === 0}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder={uniqueZips.length === 0 ? "Loading zip codes..." : "Select a zip code"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {uniqueZips.map(zip => (
-                    <SelectItem key={zip} value={zip}>
-                      {zip}
-                    </SelectItem>
-                  ))}
+                  {uniqueZips.length > 0 ? (
+                    uniqueZips.map(zip => (
+                      <SelectItem key={zip} value={zip}>
+                        {zip}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="none" disabled>No zip codes available</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             )}
