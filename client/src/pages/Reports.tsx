@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArrowLeft, FileText, BarChart3, TrendingUp } from "lucide-react";
 import { PermitReport } from "@/components/reports/PermitReport";
 import { PermitComparison } from "@/components/reports/PermitComparison";
-import { HotSpotTimeline } from "@/components/reports/HotSpotTimeline";
+import { Outliers } from "@/components/reports/Outliers";
 import { SEO } from "@/components/SEO";
 
 export default function Reports() {
@@ -17,7 +17,7 @@ export default function Reports() {
     <div className="min-h-screen bg-background">
       <SEO
         title="Sales Reports & Analytics - Texas Alcohol Sales Map"
-        description="Detailed alcohol sales reports and analytics for Texas establishments. Compare locations, analyze permit-level data, and track county consumption trends over time."
+        description="Detailed alcohol sales reports and analytics for Texas establishments. Compare locations, analyze permit-level data, and identify outliers selling disproportionately more beer, wine, or liquor by county."
         type="website"
       />
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -46,9 +46,9 @@ export default function Reports() {
               <BarChart3 className="h-4 w-4 mr-2" />
               Location Comparison
             </TabsTrigger>
-            <TabsTrigger value="hotspot" data-testid="tab-hotspot-report">
+            <TabsTrigger value="outliers" data-testid="tab-outliers-report">
               <TrendingUp className="h-4 w-4 mr-2" />
-              Hot Spot Timeline
+              Outliers
             </TabsTrigger>
           </TabsList>
 
@@ -74,13 +74,13 @@ export default function Reports() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="hotspot" className="space-y-4">
+          <TabsContent value="outliers" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>County Hot Spot Timeline</CardTitle>
+                <CardTitle>Sales Outliers Analysis</CardTitle>
               </CardHeader>
               <CardContent>
-                <HotSpotTimeline />
+                <Outliers />
               </CardContent>
             </Card>
           </TabsContent>

@@ -34,7 +34,7 @@ Preferred communication style: Simple, everyday language.
 - **Performance**: Paginated API responses (1000 locations per page) prevent memory overflows in production. Smart sorting ensures locations are always ordered by highest sales.
 - **Data Normalization**: County codes are standardized to 3 digits (`.padStart(3, '0')`) to ensure accurate data mapping across all 254 Texas counties.
 - **Hybrid Map Approach**: Combines individual location markers with interactive county overlays. `allLocations` prop provides unfiltered data for accurate county tooltips regardless of current sidebar filters.
-- **Reports Page**: Features Permit Reports (single permit analysis), Permit Comparison (up to 6 permits), and Hot Spot Timeline (county consumption trend analysis).
+- **Reports Page**: Features Permit Reports (single permit analysis), Permit Comparison (up to 6 permits), and Outliers (identifies locations selling disproportionately more beer, wine, or liquor by county and year).
 
 ## External Dependencies
 
