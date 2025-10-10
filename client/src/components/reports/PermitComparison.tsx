@@ -192,8 +192,27 @@ export function PermitComparison() {
 
           {chartData.length > 0 && (
             <div>
-              <h4 className="font-semibold mb-4">Sales Comparison Over Time</h4>
-              <ResponsiveContainer width="100%" height={400}>
+              <h4 className="font-semibold mb-4 text-base lg:text-lg">Sales Comparison Over Time</h4>
+              <ResponsiveContainer width="100%" height={300} className="sm:hidden">
+                <LineChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} />
+                  <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  {validData.map((item, index) => (
+                    <Line
+                      key={item.permit}
+                      type="monotone"
+                      dataKey={item.permit}
+                      stroke={COLORS[index % COLORS.length]}
+                      name={`${item.data?.locationName.substring(0, 15)}...`}
+                      strokeWidth={2}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+              <ResponsiveContainer width="100%" height={400} className="hidden sm:block">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />

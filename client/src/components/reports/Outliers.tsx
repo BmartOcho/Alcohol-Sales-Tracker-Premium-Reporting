@@ -352,7 +352,7 @@ export function Outliers({ onNavigateToReport }: OutliersProps = {}) {
           </div>
         </div>
 
-        <div className="w-64">
+        <div className="w-full sm:w-64">
           <Label className="flex items-center gap-2">
             Minimum Revenue ($)
             {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
@@ -390,22 +390,22 @@ export function Outliers({ onNavigateToReport }: OutliersProps = {}) {
 
       {areaStats && outliers.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h3 className="text-lg font-semibold">
               Statistical Outliers in {areaName} {areaType === "county" ? "County" : ""}
             </h3>
-            <div className="flex gap-2">
-              <Badge variant="outline" style={{ borderColor: COLORS.beer }}>
-                <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS.beer }} />
-                Beer Avg: {areaStats.avgBeerPercent.toFixed(1)}%
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" style={{ borderColor: COLORS.beer }} className="text-xs">
+                <span className="w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: COLORS.beer }} />
+                Beer: {areaStats.avgBeerPercent.toFixed(1)}%
               </Badge>
-              <Badge variant="outline" style={{ borderColor: COLORS.wine }}>
-                <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS.wine }} />
-                Wine Avg: {areaStats.avgWinePercent.toFixed(1)}%
+              <Badge variant="outline" style={{ borderColor: COLORS.wine }} className="text-xs">
+                <span className="w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: COLORS.wine }} />
+                Wine: {areaStats.avgWinePercent.toFixed(1)}%
               </Badge>
-              <Badge variant="outline" style={{ borderColor: COLORS.liquor }}>
-                <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS.liquor }} />
-                Liquor Avg: {areaStats.avgLiquorPercent.toFixed(1)}%
+              <Badge variant="outline" style={{ borderColor: COLORS.liquor }} className="text-xs">
+                <span className="w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: COLORS.liquor }} />
+                Liquor: {areaStats.avgLiquorPercent.toFixed(1)}%
               </Badge>
             </div>
           </div>
@@ -430,26 +430,26 @@ export function Outliers({ onNavigateToReport }: OutliersProps = {}) {
                   onClick={() => onNavigateToReport?.(outlier.permitNumber, startDate, endDate)}
                 >
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-base lg:text-lg flex items-center gap-2">
                           <span className="text-muted-foreground font-normal">#{index + 1}</span>
-                          {outlier.locationName}
+                          <span className="truncate">{outlier.locationName}</span>
                         </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">{outlier.address}</p>
+                        <p className="text-xs lg:text-sm text-muted-foreground mt-1 truncate">{outlier.address}</p>
                       </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-2 justify-end">
+                      <div className="flex items-center gap-3 sm:text-right sm:flex-col sm:items-end">
+                        <div className="flex items-center gap-2">
                           {outlier[`${outlier.outlierType}ZScore`] > 0 ? (
                             <TrendingUp className="h-4 w-4" style={{ color: COLORS[outlier.outlierType] }} />
                           ) : (
                             <TrendingDown className="h-4 w-4" style={{ color: COLORS[outlier.outlierType] }} />
                           )}
-                          <span className="text-2xl font-bold" style={{ color: COLORS[outlier.outlierType] }}>
+                          <span className="text-xl lg:text-2xl font-bold" style={{ color: COLORS[outlier.outlierType] }}>
                             Z = {outlier[`${outlier.outlierType}ZScore`].toFixed(2)}
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 capitalize">{outlier.outlierType} outlier</p>
+                        <p className="text-xs text-muted-foreground capitalize">{outlier.outlierType} outlier</p>
                       </div>
                     </div>
                   </CardHeader>

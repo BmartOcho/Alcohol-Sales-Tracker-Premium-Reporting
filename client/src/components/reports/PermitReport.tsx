@@ -267,8 +267,8 @@ export function PermitReport({ initialPermit, initialDateRange }: PermitReportPr
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex gap-4 items-end">
+    <div className="space-y-4 lg:space-y-6">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-end">
         <div className="flex-1">
           <Label htmlFor="location-name">Search Location</Label>
           <div className="relative">
@@ -289,7 +289,7 @@ export function PermitReport({ initialPermit, initialDateRange }: PermitReportPr
         </div>
 
         {locationData && availableYears.length > 0 && (
-          <div className="w-48">
+          <div className="w-full sm:w-48">
             <Label htmlFor="year-filter">Filter by Year</Label>
             <Select value={selectedYear} onValueChange={setSelectedYear}>
               <SelectTrigger id="year-filter" data-testid="select-year-filter">
@@ -309,11 +309,12 @@ export function PermitReport({ initialPermit, initialDateRange }: PermitReportPr
           <Button 
             onClick={downloadPDF} 
             variant="default" 
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto"
             data-testid="button-download-pdf"
           >
             <Download className="h-4 w-4" />
-            Download PDF
+            <span className="hidden sm:inline">Download PDF</span>
+            <span className="sm:hidden">PDF</span>
           </Button>
         )}
       </div>
@@ -377,7 +378,7 @@ export function PermitReport({ initialPermit, initialDateRange }: PermitReportPr
           )}
 
           {/* Header Metrics */}
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
             <MetricCard
               label={metrics.isInactive ? "Final Month" : "Latest Month"}
               value={metrics.recentMonth.value}
@@ -415,7 +416,7 @@ export function PermitReport({ initialPermit, initialDateRange }: PermitReportPr
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
             {/* Location Section */}
             <Card>
               <CardContent className="p-6">
@@ -534,17 +535,17 @@ export function PermitReport({ initialPermit, initialDateRange }: PermitReportPr
                 </BarChart>
               </ResponsiveContainer>
 
-              <div className="mt-6 grid grid-cols-3 gap-4 border-t pt-4">
+              <div className="mt-4 lg:mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 border-t pt-3 lg:pt-4">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">${totals.liquor.toLocaleString()}</p>
+                  <p className="text-xl lg:text-2xl font-bold text-blue-600">${totals.liquor.toLocaleString()}</p>
                   <p className="text-sm text-muted-foreground">Total Liquor Sales</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-red-600">${totals.wine.toLocaleString()}</p>
+                  <p className="text-xl lg:text-2xl font-bold text-red-600">${totals.wine.toLocaleString()}</p>
                   <p className="text-sm text-muted-foreground">Total Wine Sales</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-amber-600">${totals.beer.toLocaleString()}</p>
+                  <p className="text-xl lg:text-2xl font-bold text-amber-600">${totals.beer.toLocaleString()}</p>
                   <p className="text-sm text-muted-foreground">Total Beer Sales</p>
                 </div>
               </div>
