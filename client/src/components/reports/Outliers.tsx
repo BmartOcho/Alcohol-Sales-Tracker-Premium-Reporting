@@ -120,7 +120,11 @@ export function Outliers() {
     params.append('limit', '10000'); // Increased limit for better area coverage
     
     if (areaType === 'county') {
-      params.append('county', areaValue);
+      // Translate county code to name for API query
+      const countyName = COUNTY_CODE_TO_NAME[areaValue];
+      if (countyName) {
+        params.append('county', countyName);
+      }
     } else if (areaType === 'city') {
       params.append('city', areaValue);
     } else if (areaType === 'zip') {

@@ -11,7 +11,7 @@ Preferred communication style: Simple, everyday language.
 - **Subscription & Payments**: Integrated Stripe payment system with $20/month Pro subscription. Secure payment flow with status validation, customer reuse, and proper error handling for expired/canceled subscriptions.
 - **SEO Optimization**: Comprehensive SEO implementation including meta tags (Open Graph, Twitter Cards), structured data (JSON-LD), sitemap.xml, and robots.txt for search engine indexing. All pages have unique, descriptive titles and meta descriptions optimized for search visibility.
 - **Critical Data Fix (Oct 2025)**: Fixed SQL GROUP BY bug in `getLocationByPermit()` that was splitting permit data into multiple groups when location details varied across monthly records. Now groups only by `permitNumber` and uses `MAX()` for location fields, ensuring consistent all-time totals across map modal, search results, and reports pages.
-- **Outliers Statistical Analysis (Oct 2025)**: Redesigned Outliers tab to use Z-score methodology. Filters by area type (city/zip/county), date range, and minimum revenue. Calculates mean and standard deviation for beer/wine/liquor percentages, then identifies outliers with |Z-score| > 2. Displays establishments with unusual sales patterns adaptable to specific geographic areas, replacing fixed percentage thresholds with statistical rigor.
+- **Outliers Statistical Analysis (Oct 2025)**: Redesigned Outliers tab to use Z-score methodology. Filters by area type (city/zip/county), date range, and minimum revenue. Calculates mean and standard deviation for beer/wine/liquor percentages, then identifies outliers with |Z-score| > 2. Displays establishments with unusual sales patterns adaptable to specific geographic areas, replacing fixed percentage thresholds with statistical rigor. Backend API now supports county/city/zip/minRevenue filtering for accurate area-specific analysis.
 - **Map Improvements (Oct 2025)**: Fixed CSP headers to allow OpenStreetMap geocoding for embedded location maps. Added loading indicators (spinning circles) to all search inputs in Reports tabs for better UX feedback.
 
 ## System Architecture
@@ -25,7 +25,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Server**: Express.js with Node.js (ES modules).
-- **API Design**: RESTful endpoints (`/api/locations`, `/api/locations/:permitNumber`, `/api/locations/refresh`).
+- **API Design**: RESTful endpoints (`/api/locations`, `/api/locations/:permitNumber`, `/api/locations/refresh`). The `/api/locations` endpoint supports filtering by county (name), city, zip code, and minimum revenue.
 - **Data Processing**: Integrates with Texas Open Data API, supports unlimited record fetching for specific years (in 10k batches), and applies a 50k record safety limit when no date filter is active. Data is transformed into a `LocationSummary` schema with monthly sales records.
 - **Storage Strategy**: Primarily uses PostgreSQL (`DatabaseStorage`) with Drizzle ORM. An in-memory cache (1-hour TTL) is also implemented for frequent queries, which can be manually refreshed.
 
