@@ -95,12 +95,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Search for existing price for this product
       const prices = await stripe.prices.list({ product: product.id, limit: 100 });
-      let price = prices.data.find(p => p.unit_amount === 2000 && p.currency === 'usd' && p.recurring?.interval === 'month');
+      let price = prices.data.find(p => p.unit_amount === 1000 && p.currency === 'usd' && p.recurring?.interval === 'month');
       
       if (!price) {
         price = await stripe.prices.create({
           product: product.id,
-          unit_amount: 2000, // $20.00 in cents
+          unit_amount: 1000, // $10.00 in cents
           currency: 'usd',
           recurring: { interval: 'month' },
         });
@@ -125,6 +125,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Error creating subscription:', error);
       return res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Stripe one-time payment route for lifetime access (from blueprint:javascript_stripe)
+  app.post('/api/create-payment-intent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Check if user already has lifetime access
+      if (user.subscriptionTier === 'lifetime') {
+        return res.status(400).json({ message: 'Already have lifetime access' });
+      }
+
+      const { amount } = req.body;
+      
+      if (!amount || amount !== 250) {
+        return res.status(400).json({ message: 'Invalid amount for lifetime access' });
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: 'usd',
+        metadata: {
+          userId: userId,
+          tier: 'lifetime'
+        }
+      });
+
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (error: any) {
+      console.error('Error creating payment intent:', error);
+      res.status(500).json({ message: 'Error creating payment intent: ' + error.message });
     }
   });
 

@@ -67,17 +67,23 @@ const SubscribeForm = () => {
   );
 };
 
+type PlanType = 'monthly' | 'lifetime';
+
 export default function Subscribe() {
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>('monthly');
   const [clientSecret, setClientSecret] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Create subscription as soon as the page loads
-    apiRequest("POST", "/api/create-subscription")
+    // Create payment intent when plan is selected
+    const endpoint = selectedPlan === 'monthly' ? '/api/create-subscription' : '/api/create-payment-intent';
+    const payload = selectedPlan === 'lifetime' ? { amount: 250 } : {};
+
+    apiRequest("POST", endpoint, payload)
       .then((res) => {
         if (!res.ok) {
           return res.json().then(data => {
-            throw new Error(data.message || 'Failed to create subscription');
+            throw new Error(data.message || 'Failed to create payment');
           });
         }
         return res.json();
@@ -86,10 +92,10 @@ export default function Subscribe() {
         setClientSecret(data.clientSecret);
       })
       .catch((err) => {
-        console.error('Error creating subscription:', err);
+        console.error('Error creating payment:', err);
         setError(err.message);
       });
-  }, []);
+  }, [selectedPlan]);
 
   if (error) {
     return (
@@ -121,15 +127,62 @@ export default function Subscribe() {
     <div className="min-h-screen bg-background p-3 lg:p-4">
       <SEO
         title="Subscribe - Texas Alcohol Sales Map Pro"
-        description="Upgrade to Pro for $20/month. Get unlimited access to interactive maps, detailed analytics, location reports, and county insights for Texas alcohol sales data."
+        description="Upgrade to Pro starting at $10/month or $250 lifetime. Get unlimited access to interactive maps, detailed analytics, location reports, and county insights for Texas alcohol sales data."
         type="website"
       />
       <div className="max-w-4xl mx-auto py-4 lg:py-8 space-y-6 lg:space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-2xl lg:text-3xl font-bold">Upgrade to Pro</h1>
           <p className="text-sm lg:text-base text-muted-foreground">
-            Get full access to all features and analytics
+            Choose the plan that works best for you
           </p>
+        </div>
+
+        {/* Plan Selection Cards */}
+        <div className="grid md:grid-cols-2 gap-4 lg:gap-6 mb-6">
+          <Card 
+            className={`cursor-pointer transition-all ${selectedPlan === 'monthly' ? 'ring-2 ring-primary' : 'hover-elevate'}`}
+            onClick={() => setSelectedPlan('monthly')}
+            data-testid="card-monthly-plan"
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                Monthly Plan
+                {selectedPlan === 'monthly' && <Check className="h-5 w-5 text-primary" />}
+              </CardTitle>
+              <CardDescription>
+                <span className="text-3xl font-bold text-foreground">$10</span>
+                <span className="text-muted-foreground">/month</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Perfect for ongoing access. Cancel anytime.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className={`cursor-pointer transition-all ${selectedPlan === 'lifetime' ? 'ring-2 ring-primary' : 'hover-elevate'}`}
+            onClick={() => setSelectedPlan('lifetime')}
+            data-testid="card-lifetime-plan"
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                Lifetime Access
+                {selectedPlan === 'lifetime' && <Check className="h-5 w-5 text-primary" />}
+              </CardTitle>
+              <CardDescription>
+                <span className="text-3xl font-bold text-foreground">$250</span>
+                <span className="text-muted-foreground"> one-time</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Pay once, access forever. Best value!
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 lg:gap-8">
@@ -183,12 +236,21 @@ export default function Subscribe() {
             <CardHeader>
               <CardTitle>Payment Details</CardTitle>
               <CardDescription>
-                <span className="text-2xl font-bold text-foreground">$20</span>
-                <span className="text-muted-foreground"> /month</span>
+                {selectedPlan === 'monthly' ? (
+                  <>
+                    <span className="text-2xl font-bold text-foreground">$10</span>
+                    <span className="text-muted-foreground"> /month</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-2xl font-bold text-foreground">$250</span>
+                    <span className="text-muted-foreground"> one-time</span>
+                  </>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Elements stripe={stripePromise} options={{ clientSecret }}>
+              <Elements stripe={stripePromise} options={{ clientSecret }} key={clientSecret}>
                 <SubscribeForm />
               </Elements>
             </CardContent>
