@@ -378,7 +378,7 @@ export function PermitReport({ initialPermit, initialDateRange }: PermitReportPr
           )}
 
           {/* Header Metrics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
             <MetricCard
               label={metrics.isInactive ? "Final Month" : "Latest Month"}
               value={metrics.recentMonth.value}
