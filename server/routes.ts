@@ -150,7 +150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Apply area filters
       if (county) {
-        locations = locations.filter(loc => loc.locationCounty === county);
+        locations = locations.filter(loc => loc.locationCounty.toLowerCase() === county.toLowerCase());
       }
       if (city) {
         locations = locations.filter(loc => loc.locationCity.toLowerCase() === city.toLowerCase());
@@ -158,6 +158,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (zip) {
         locations = locations.filter(loc => loc.locationZip === zip);
       }
+      
+      // Filter out ceased operations (locations with zero sales)
+      locations = locations.filter(loc => loc.totalSales > 0);
+      
       if (minRevenue !== undefined) {
         locations = locations.filter(loc => loc.totalSales >= minRevenue);
       }
