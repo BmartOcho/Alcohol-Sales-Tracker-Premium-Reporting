@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,11 +21,30 @@ const COLORS = {
   beer: "#f59e0b", // amber
 };
 
-export function PermitReport() {
+interface PermitReportProps {
+  initialPermit?: string | null;
+  initialDateRange?: { start: string; end: string } | null;
+}
+
+export function PermitReport({ initialPermit, initialDateRange }: PermitReportProps = {}) {
   const [locationName, setLocationName] = useState("");
-  const [selectedPermit, setSelectedPermit] = useState<string>("");
-  const [selectedYear, setSelectedYear] = useState<string>("all");
+  const [selectedPermit, setSelectedPermit] = useState<string>(initialPermit || "");
+  const [selectedYear, setSelectedYear] = useState<string>(
+    initialDateRange ? new Date(initialDateRange.start).getFullYear().toString() : "all"
+  );
   const reportRef = useRef<HTMLDivElement>(null);
+
+  // Update state when initial props change (e.g., navigating from Outliers)
+  useEffect(() => {
+    if (initialPermit) {
+      setSelectedPermit(initialPermit);
+      setLocationName(""); // Clear search when navigating from elsewhere
+      if (initialDateRange) {
+        const year = new Date(initialDateRange.start).getFullYear().toString();
+        setSelectedYear(year);
+      }
+    }
+  }, [initialPermit, initialDateRange]);
 
   // Debounce search query (300ms delay)
   const debouncedLocationName = useDebounce(locationName, 300);

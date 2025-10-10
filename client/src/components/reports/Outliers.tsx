@@ -105,7 +105,11 @@ function calculateStdDev(values: number[], mean: number): number {
   return Math.sqrt(variance);
 }
 
-export function Outliers() {
+interface OutliersProps {
+  onNavigateToReport?: (permitNumber: string, startDate: string, endDate: string) => void;
+}
+
+export function Outliers({ onNavigateToReport }: OutliersProps = {}) {
   const [areaType, setAreaType] = useState<AreaType>("county");
   const [areaValue, setAreaValue] = useState("101"); // Harris County default
   const [startDate, setStartDate] = useState("2024-01-01");
@@ -422,7 +426,12 @@ export function Outliers() {
               ];
               
               return (
-                <Card key={outlier.permitNumber} className="hover-elevate" data-testid={`card-outlier-${outlier.permitNumber}`}>
+                <Card 
+                  key={outlier.permitNumber} 
+                  className="hover-elevate cursor-pointer transition-all" 
+                  data-testid={`card-outlier-${outlier.permitNumber}`}
+                  onClick={() => onNavigateToReport?.(outlier.permitNumber, startDate, endDate)}
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">

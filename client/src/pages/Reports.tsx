@@ -12,6 +12,14 @@ import { SEO } from "@/components/SEO";
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState("location");
+  const [selectedPermitForReport, setSelectedPermitForReport] = useState<string | null>(null);
+  const [selectedDateRange, setSelectedDateRange] = useState<{ start: string; end: string } | null>(null);
+
+  const handleNavigateToLocationReport = (permitNumber: string, startDate: string, endDate: string) => {
+    setSelectedPermitForReport(permitNumber);
+    setSelectedDateRange({ start: startDate, end: endDate });
+    setActiveTab("location");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -67,7 +75,10 @@ export default function Reports() {
                 <CardTitle>Location Sales Report</CardTitle>
               </CardHeader>
               <CardContent>
-                <PermitReport />
+                <PermitReport 
+                  initialPermit={selectedPermitForReport} 
+                  initialDateRange={selectedDateRange}
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -89,7 +100,7 @@ export default function Reports() {
                 <CardTitle>Sales Outliers Analysis</CardTitle>
               </CardHeader>
               <CardContent>
-                <Outliers />
+                <Outliers onNavigateToReport={handleNavigateToLocationReport} />
               </CardContent>
             </Card>
           </TabsContent>

@@ -231,16 +231,17 @@ export class DatabaseStorage implements IStorage {
     const end = endDate ? new Date(endDate) : null;
     
     // Step 1: Use SQL aggregation to get location summaries (FAST)
+    // Group only by permitNumber, use MAX() for location details to avoid splitting data
     const aggregationQuery = db
       .select({
         permitNumber: monthlySales.permitNumber,
-        locationName: monthlySales.locationName,
-        locationAddress: monthlySales.locationAddress,
-        locationCity: monthlySales.locationCity,
-        locationCounty: monthlySales.locationCounty,
-        locationZip: monthlySales.locationZip,
-        lat: monthlySales.lat,
-        lng: monthlySales.lng,
+        locationName: sql<string>`MAX(${monthlySales.locationName})`,
+        locationAddress: sql<string>`MAX(${monthlySales.locationAddress})`,
+        locationCity: sql<string>`MAX(${monthlySales.locationCity})`,
+        locationCounty: sql<string>`MAX(${monthlySales.locationCounty})`,
+        locationZip: sql<string>`MAX(${monthlySales.locationZip})`,
+        lat: sql<string>`MAX(${monthlySales.lat})`,
+        lng: sql<string>`MAX(${monthlySales.lng})`,
         totalSales: sql<string>`SUM(${monthlySales.totalReceipts})::text`,
         liquorSales: sql<string>`SUM(${monthlySales.liquorReceipts})::text`,
         wineSales: sql<string>`SUM(${monthlySales.wineReceipts})::text`,
@@ -258,16 +259,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     const aggregatedLocations = await aggregationQuery
-      .groupBy(
-        monthlySales.permitNumber,
-        monthlySales.locationName,
-        monthlySales.locationAddress,
-        monthlySales.locationCity,
-        monthlySales.locationCounty,
-        monthlySales.locationZip,
-        monthlySales.lat,
-        monthlySales.lng
-      );
+      .groupBy(monthlySales.permitNumber);
     
     // Step 2: Fetch monthly records with same date filter (simple WHERE clause, no = ANY limit)
     const allMonthlyRecords = start && end
