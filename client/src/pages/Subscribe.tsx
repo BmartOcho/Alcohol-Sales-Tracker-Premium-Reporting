@@ -118,21 +118,21 @@ export default function Subscribe() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-background p-3 lg:p-4">
       <SEO
         title="Subscribe - Texas Alcohol Sales Map Pro"
         description="Upgrade to Pro for $20/month. Get unlimited access to interactive maps, detailed analytics, location reports, and county insights for Texas alcohol sales data."
         type="website"
       />
-      <div className="max-w-4xl mx-auto py-8 space-y-8">
+      <div className="max-w-4xl mx-auto py-4 lg:py-8 space-y-6 lg:space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Upgrade to Pro</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl lg:text-3xl font-bold">Upgrade to Pro</h1>
+          <p className="text-sm lg:text-base text-muted-foreground">
             Get full access to all features and analytics
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-2 gap-6 lg:gap-8">
           {/* Features */}
           <Card>
             <CardHeader>

@@ -217,30 +217,36 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-screen w-full overflow-hidden">
       <SEO
         title="Texas Alcohol Sales Map - Explore Sales Data by Location"
         description="Interactive map showing alcohol sales data for 22,000+ Texas establishments. Filter by year, search locations, and analyze sales trends across all 254 counties."
         type="website"
       />
       {/* Sidebar */}
-      <div className="w-96 border-r bg-card flex flex-col h-full">
-        <div className="p-4 border-b space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Star className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-bold">Texas Alcohol Sales</h1>
+      <div className="w-full lg:w-96 border-r bg-card flex flex-col h-1/2 lg:h-full">
+        <div className="p-3 lg:p-4 border-b space-y-3 lg:space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Star className="h-5 w-5 lg:h-6 lg:w-6 text-primary flex-shrink-0" />
+              <h1 className="text-lg lg:text-xl font-bold truncate">Texas Alcohol Sales</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 lg:gap-2 flex-shrink-0">
               <Link href="/reports">
-                <Button variant="outline" size="sm" data-testid="button-reports">
+                <Button variant="outline" size="sm" data-testid="button-reports" className="hidden sm:flex">
                   <FileText className="h-4 w-4 mr-2" />
                   Reports
                 </Button>
+                <Button variant="outline" size="icon" data-testid="button-reports-mobile" className="sm:hidden h-8 w-8">
+                  <FileText className="h-4 w-4" />
+                </Button>
               </Link>
               <Link href="/subscribe">
-                <Button variant="default" size="sm" data-testid="button-subscribe">
+                <Button variant="default" size="sm" data-testid="button-subscribe" className="hidden sm:flex">
                   Upgrade
+                </Button>
+                <Button variant="default" size="icon" data-testid="button-subscribe-mobile" className="sm:hidden h-8 w-8">
+                  <Star className="h-4 w-4" />
                 </Button>
               </Link>
               <ThemeToggle />
@@ -436,13 +442,14 @@ export default function Home() {
       />
 
       {/* Map Section */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <div className="p-4 border-b flex-shrink-0">
-          <div className="text-sm text-muted-foreground">
+      <div className="flex-1 flex flex-col h-1/2 lg:h-full overflow-hidden">
+        <div className="p-2 lg:p-4 border-b flex-shrink-0">
+          <div className="text-xs lg:text-sm text-muted-foreground">
             <p className="font-medium">
-              Click location markers for details • Click counties to filter sidebar
+              <span className="hidden sm:inline">Click location markers for details • Click counties to filter sidebar</span>
+              <span className="sm:hidden">Tap markers & counties to explore</span>
             </p>
-            <p className="text-xs mt-1">
+            <p className="text-xs mt-1 hidden sm:block">
               Marker colors: <span style={{ color: "#9333ea" }}>■ Liquor-dominant</span>{" "}
               <span style={{ color: "#dc2626" }}>■ Wine-dominant</span>{" "}
               <span style={{ color: "#f59e0b" }}>■ Beer-dominant</span>
@@ -452,13 +459,13 @@ export default function Home() {
         <div className="flex-1 relative">
           {isLoading ? (
             <div className="w-full h-full bg-muted flex items-center justify-center">
-              <div className="text-center space-y-4">
+              <div className="text-center space-y-3 lg:space-y-4 px-4">
                 <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                  <div className="animate-spin rounded-full h-10 w-10 lg:h-12 lg:w-12 border-b-2 border-primary"></div>
                 </div>
                 <div>
-                  <p className="text-lg font-medium">Loading Texas Alcohol Sales Data</p>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-base lg:text-lg font-medium">Loading Texas Alcohol Sales Data</p>
+                  <p className="text-xs lg:text-sm text-muted-foreground mt-1">
                     Fetching {selectedYear} sales data for 22,000+ locations...
                   </p>
                 </div>

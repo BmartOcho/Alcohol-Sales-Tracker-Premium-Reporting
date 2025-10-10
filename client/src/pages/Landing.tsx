@@ -47,32 +47,35 @@ export default function Landing() {
         }}
       />
       <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold">Texas Alcohol Sales Map</h1>
+        <div className="container mx-auto px-3 lg:px-4 py-3 lg:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <BarChart3 className="h-5 w-5 lg:h-6 lg:w-6 text-primary flex-shrink-0" />
+            <h1 className="text-base lg:text-xl font-bold truncate">
+              <span className="hidden sm:inline">Texas Alcohol Sales Map</span>
+              <span className="sm:hidden">TX Alcohol Sales</span>
+            </h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 lg:gap-4 flex-shrink-0">
             <ThemeToggle />
-            <Button onClick={handleLogin} data-testid="button-login">
+            <Button onClick={handleLogin} data-testid="button-login" size="sm" className="lg:text-base">
               Log In
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-16">
-        <div className="max-w-6xl mx-auto space-y-16">
+      <main className="container mx-auto px-3 lg:px-4 py-8 lg:py-16">
+        <div className="max-w-6xl mx-auto space-y-8 lg:space-y-16">
           {/* Hero Section */}
-          <div className="text-center space-y-4">
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
+          <div className="text-center space-y-3 lg:space-y-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight px-2">
               Visualize Texas Alcohol Sales Data
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
               Interactive mapping and analytics for mixed beverage gross receipts across Texas establishments
             </p>
-            <div className="pt-4">
-              <Button size="lg" onClick={handleLogin} className="text-lg px-8" data-testid="button-hero-login">
+            <div className="pt-2 lg:pt-4">
+              <Button size="lg" onClick={handleLogin} className="text-base lg:text-lg px-6 lg:px-8" data-testid="button-hero-login">
                 Get Started
               </Button>
             </div>
