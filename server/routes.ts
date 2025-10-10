@@ -130,6 +130,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Stripe subscription route (from blueprint:javascript_stripe)
   app.post('/api/create-subscription', isAuthenticated, async (req: any, res) => {
     try {
+      // Validate user authentication metadata
+      if (!req.user?.claims?.sub) {
+        return res.status(401).json({ message: 'Authentication required - missing user ID' });
+      }
+
       const userId = req.user.claims.sub;
       let user = await storage.getUser(userId);
       
@@ -230,6 +235,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Stripe one-time payment route for lifetime access (from blueprint:javascript_stripe)
   app.post('/api/create-payment-intent', isAuthenticated, async (req: any, res) => {
     try {
+      // Validate user authentication metadata
+      if (!req.user?.claims?.sub) {
+        return res.status(401).json({ message: 'Authentication required - missing user ID' });
+      }
+
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       

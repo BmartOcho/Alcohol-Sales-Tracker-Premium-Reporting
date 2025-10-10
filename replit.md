@@ -9,6 +9,13 @@ Preferred communication style: Simple, everyday language.
 ## Recent Updates (January 2025)
 - **Authentication System**: Implemented Replit Auth (OIDC) for user login with Google, GitHub, and email/password support. Session management via PostgreSQL with automatic token refresh.
 - **Subscription & Payments**: Integrated Stripe payment system with flexible pricing options: $10/month Pro subscription or $250 lifetime access. Secure payment flow with status validation, customer reuse, and proper error handling for expired/canceled subscriptions. Webhook endpoint (`/api/stripe-webhook`) handles payment confirmations and requires STRIPE_WEBHOOK_SECRET for signature verification.
+  - **Webhook Configuration** (REQUIRED for subscription management):
+    1. In Stripe Dashboard, go to Developers > Webhooks
+    2. Add endpoint URL: `https://your-domain.com/api/stripe-webhook`
+    3. Select events: `payment_intent.succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
+    4. Copy the webhook signing secret to STRIPE_WEBHOOK_SECRET environment variable (REQUIRED - webhook returns 500 error if missing)
+    5. The webhook will automatically upgrade users to 'lifetime' tier for one-time payments and 'pro' tier for monthly subscriptions
+  - **Security**: Webhook signature verification is mandatory - no fallback to unverified payloads. User authentication is validated before creating payment intents.
 - **SEO Optimization**: Comprehensive SEO implementation including meta tags (Open Graph, Twitter Cards), structured data (JSON-LD), sitemap.xml, and robots.txt for search engine indexing. All pages have unique, descriptive titles and meta descriptions optimized for search visibility.
 - **Critical Data Fix (Oct 2025)**: Fixed SQL GROUP BY bug in `getLocationByPermit()` that was splitting permit data into multiple groups when location details varied across monthly records. Now groups only by `permitNumber` and uses `MAX()` for location fields, ensuring consistent all-time totals across map modal, search results, and reports pages.
 - **Outliers Statistical Analysis (Oct 2025)**: Redesigned Outliers tab to use Z-score methodology. Filters by area type (city/zip/county), date range, and minimum revenue. Calculates mean and standard deviation for beer/wine/liquor percentages, then identifies outliers with |Z-score| > 2. Displays establishments with unusual sales patterns adaptable to specific geographic areas, replacing fixed percentage thresholds with statistical rigor. Backend API now supports county/city/zip/minRevenue filtering for accurate area-specific analysis.
