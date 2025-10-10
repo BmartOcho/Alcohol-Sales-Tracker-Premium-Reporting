@@ -457,10 +457,10 @@ export function PermitReport({ initialPermit, initialDateRange }: PermitReportPr
                 <div className="space-y-4">
                   <div className="border-b pb-3">
                     <p className="text-sm text-muted-foreground mb-1">Taxpayer Info</p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
                         <p className="text-xs text-muted-foreground">Taxpayer Name</p>
-                        <p className="text-sm font-medium">{locationData.monthlyRecords?.[0]?.taxpayerName || "N/A"}</p>
+                        <p className="text-sm font-medium break-words">{locationData.monthlyRecords?.[0]?.taxpayerName || "N/A"}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Location Number</p>
