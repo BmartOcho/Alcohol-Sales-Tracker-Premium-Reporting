@@ -11,6 +11,8 @@ Preferred communication style: Simple, everyday language.
 - **Subscription & Payments**: Integrated Stripe payment system with $20/month Pro subscription. Secure payment flow with status validation, customer reuse, and proper error handling for expired/canceled subscriptions.
 - **SEO Optimization**: Comprehensive SEO implementation including meta tags (Open Graph, Twitter Cards), structured data (JSON-LD), sitemap.xml, and robots.txt for search engine indexing. All pages have unique, descriptive titles and meta descriptions optimized for search visibility.
 - **Critical Data Fix (Oct 2025)**: Fixed SQL GROUP BY bug in `getLocationByPermit()` that was splitting permit data into multiple groups when location details varied across monthly records. Now groups only by `permitNumber` and uses `MAX()` for location fields, ensuring consistent all-time totals across map modal, search results, and reports pages.
+- **Outliers Statistical Analysis (Oct 2025)**: Redesigned Outliers tab to use Z-score methodology. Filters by area type (city/zip/county), date range, and minimum revenue. Calculates mean and standard deviation for beer/wine/liquor percentages, then identifies outliers with |Z-score| > 2. Displays establishments with unusual sales patterns adaptable to specific geographic areas, replacing fixed percentage thresholds with statistical rigor.
+- **Map Improvements (Oct 2025)**: Fixed CSP headers to allow OpenStreetMap geocoding for embedded location maps. Added loading indicators (spinning circles) to all search inputs in Reports tabs for better UX feedback.
 
 ## System Architecture
 
@@ -34,7 +36,7 @@ Preferred communication style: Simple, everyday language.
 - **Performance**: Paginated API responses (1000 locations per page) prevent memory overflows in production. Smart sorting ensures locations are always ordered by highest sales.
 - **Data Normalization**: County codes are standardized to 3 digits (`.padStart(3, '0')`) to ensure accurate data mapping across all 254 Texas counties.
 - **Hybrid Map Approach**: Combines individual location markers with interactive county overlays. `allLocations` prop provides unfiltered data for accurate county tooltips regardless of current sidebar filters.
-- **Reports Page**: Features Permit Reports (single permit analysis), Permit Comparison (up to 6 permits), and Outliers (identifies locations selling disproportionately more beer, wine, or liquor by county and year).
+- **Reports Page**: Features Permit Reports (single permit analysis), Permit Comparison (up to 6 permits), and Outliers (statistical Z-score analysis to identify unusual sales patterns).
 
 ## External Dependencies
 

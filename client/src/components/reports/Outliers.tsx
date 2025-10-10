@@ -112,10 +112,32 @@ export function Outliers() {
   const [endDate, setEndDate] = useState("2024-12-31");
   const [minRevenue, setMinRevenue] = useState("10000");
 
+  // Build query parameters based on area type
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams();
+    params.append('startDate', startDate);
+    params.append('endDate', endDate);
+    params.append('limit', '10000'); // Increased limit for better area coverage
+    
+    if (areaType === 'county') {
+      params.append('county', areaValue);
+    } else if (areaType === 'city') {
+      params.append('city', areaValue);
+    } else if (areaType === 'zip') {
+      params.append('zip', areaValue);
+    }
+    
+    if (minRevenue) {
+      params.append('minRevenue', minRevenue);
+    }
+    
+    return params.toString();
+  }, [startDate, endDate, areaType, areaValue, minRevenue]);
+
   // Fetch locations for selected area and date range
   const { data: locationsData, isLoading, error } = useQuery<{ locations: LocationSummary[]; total: number }>({
-    queryKey: [`/api/locations?startDate=${startDate}&endDate=${endDate}&limit=5000`],
-    enabled: !!startDate && !!endDate,
+    queryKey: [`/api/locations?${queryParams}`],
+    enabled: !!startDate && !!endDate && !!areaValue,
   });
 
   // Calculate outliers using Z-scores
@@ -124,21 +146,8 @@ export function Outliers() {
       return { outliers: [], areaStats: null, areaName: "" };
     }
 
-    const minRev = parseFloat(minRevenue) || 10000;
-    
-    // Filter by area and minimum revenue
-    const filteredLocations = locationsData.locations.filter(loc => {
-      if (loc.totalSales < minRev) return false;
-      
-      if (areaType === "county") {
-        return loc.locationCounty === areaValue;
-      } else if (areaType === "city") {
-        return loc.locationCity.toLowerCase() === areaValue.toLowerCase();
-      } else if (areaType === "zip") {
-        return loc.locationZip === areaValue;
-      }
-      return false;
-    });
+    // API already filters by area and min revenue, so we can use all locations directly
+    const filteredLocations = locationsData.locations;
 
     if (filteredLocations.length < 3) {
       return { outliers: [], areaStats: null, areaName: "" };
@@ -214,7 +223,7 @@ export function Outliers() {
     }
 
     return { outliers: results, areaStats: stats, areaName: name };
-  }, [locationsData, areaType, areaValue, minRevenue, startDate, endDate]);
+  }, [locationsData, areaType, areaValue]);
 
   // Get unique cities and zips for dropdowns
   const { uniqueCities, uniqueZips } = useMemo(() => {

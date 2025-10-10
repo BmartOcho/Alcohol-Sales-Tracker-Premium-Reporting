@@ -132,15 +132,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
+      const county = req.query.county as string;
+      const city = req.query.city as string;
+      const zip = req.query.zip as string;
+      const minRevenue = req.query.minRevenue ? parseFloat(req.query.minRevenue as string) : undefined;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 1000;
       
       console.log(`Fetching locations from database - Date range: ${startDate || 'all'} to ${endDate || 'all'}`);
+      if (county) console.log(`  Filtering by county: ${county}`);
+      if (city) console.log(`  Filtering by city: ${city}`);
+      if (zip) console.log(`  Filtering by zip: ${zip}`);
+      if (minRevenue) console.log(`  Filtering by min revenue: $${minRevenue}`);
       
       // Query database directly (much faster than API)
-      const locations = await storage.getLocations(startDate, endDate);
+      let locations = await storage.getLocations(startDate, endDate);
       
-      console.log(`Found ${locations.length} locations in database`);
+      // Apply area filters
+      if (county) {
+        locations = locations.filter(loc => loc.locationCounty === county);
+      }
+      if (city) {
+        locations = locations.filter(loc => loc.locationCity.toLowerCase() === city.toLowerCase());
+      }
+      if (zip) {
+        locations = locations.filter(loc => loc.locationZip === zip);
+      }
+      if (minRevenue !== undefined) {
+        locations = locations.filter(loc => loc.totalSales >= minRevenue);
+      }
+      
+      console.log(`Found ${locations.length} locations in database after filters`);
 
       // Paginate the results
       const startIndex = (page - 1) * limit;
