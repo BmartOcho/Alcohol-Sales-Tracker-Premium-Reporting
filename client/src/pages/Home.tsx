@@ -224,7 +224,7 @@ export default function Home() {
         type="website"
       />
       {/* Sidebar */}
-      <div className="w-full lg:w-96 border-r bg-card flex flex-col h-1/2 lg:h-full">
+      <div className="w-full lg:w-96 border-r bg-card flex flex-col h-[65vh] lg:h-full">
         <div className="p-3 lg:p-4 border-b space-y-3 lg:space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -305,22 +305,22 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="p-4 border-b">
+        <div className="p-2 lg:p-4 border-b">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="pb-2 lg:pb-3">
+              <CardTitle className="text-xs lg:text-sm font-medium text-muted-foreground">
                 {selectedCounty ? `${COUNTY_CODE_TO_NAME[selectedCounty] || selectedCounty} County` : "Total Sales"} {selectedYear !== "all" ? `(${selectedYear})` : "(All Time)"}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pb-3 lg:pb-6">
               {isLoading ? (
-                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-8 lg:h-10 w-full" />
               ) : (
                 <>
-                  <p className="text-3xl font-mono font-bold" data-testid="text-total-sales">
+                  <p className="text-2xl lg:text-3xl font-mono font-bold" data-testid="text-total-sales">
                     ${totalSales.toLocaleString()}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-1" data-testid="text-location-count">
+                  <p className="text-xs lg:text-sm text-muted-foreground mt-1" data-testid="text-location-count">
                     {filteredLocations.length.toLocaleString()} location{filteredLocations.length !== 1 ? 's' : ''}
                     {searchQuery && " (filtered)"}
                   </p>
@@ -331,7 +331,7 @@ export default function Home() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="p-4 space-y-3">
+          <div className="p-2 lg:p-4 space-y-2 lg:space-y-3">
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -354,7 +354,7 @@ export default function Home() {
                 {paginatedLocations.map((location) => (
                   <Card 
                     key={location.permitNumber}
-                    className="p-4 hover-elevate active-elevate-2 cursor-pointer transition-all"
+                    className="p-2 lg:p-4 hover-elevate active-elevate-2 cursor-pointer transition-all"
                     onClick={() => setSelectedPermitNumber(location.permitNumber)}
                     data-testid={`card-location-${location.permitNumber}`}
                   >
@@ -442,7 +442,7 @@ export default function Home() {
       />
 
       {/* Map Section */}
-      <div className="flex-1 flex flex-col h-1/2 lg:h-full overflow-hidden">
+      <div className="flex-1 flex flex-col h-[35vh] lg:h-full overflow-hidden">
         <div className="p-2 lg:p-4 border-b flex-shrink-0">
           <div className="text-xs lg:text-sm text-muted-foreground">
             <p className="font-medium">
