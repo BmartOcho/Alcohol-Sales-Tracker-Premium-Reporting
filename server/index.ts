@@ -25,7 +25,7 @@ app.use((req, res, next) => {
       "font-src 'self' https://fonts.gstatic.com; " +
       "img-src 'self' data: https:; " +
       "frame-src https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://m.stripe.com; " +
-      "connect-src 'self' https://api.stripe.com https://m.stripe.network https://m.stripe.com;"
+      "connect-src 'self' https://api.stripe.com https://m.stripe.network https://m.stripe.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org;"
     );
   }
   next();
