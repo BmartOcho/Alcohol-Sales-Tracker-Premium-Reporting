@@ -4,10 +4,16 @@ import { randomUUID } from "crypto";
 export interface IStorage {
   // User operations (Required for Replit Auth - from blueprint:javascript_log_in_with_replit)
   getUser(id: string): Promise<User | undefined>;
+  getUserByStripeCustomerId(customerId: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   // Stripe subscription operations (from blueprint:javascript_stripe)
   updateUserStripeInfo(userId: string, customerId: string, subscriptionId: string): Promise<User>;
-  updateSubscriptionStatus(userId: string, status: string, endsAt?: Date): Promise<User>;
+  updateSubscriptionStatus(userId: string, updates: {
+    subscriptionStatus?: string;
+    subscriptionTier?: string;
+    stripeSubscriptionId?: string | null;
+    subscriptionEndsAt?: Date | null;
+  }): Promise<User>;
   clearStripeSubscription(userId: string): Promise<User>;
   // Location operations
   getLocations(startDate?: string, endDate?: string): Promise<LocationSummary[]>;
@@ -29,6 +35,11 @@ export class MemStorage implements IStorage {
 
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
+  }
+
+  async getUserByStripeCustomerId(customerId: string): Promise<User | undefined> {
+    const allUsers = Array.from(this.users.values());
+    return allUsers.find(user => user.stripeCustomerId === customerId);
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
@@ -67,13 +78,20 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async updateSubscriptionStatus(userId: string, status: string, endsAt?: Date): Promise<User> {
+  async updateSubscriptionStatus(userId: string, updates: {
+    subscriptionStatus?: string;
+    subscriptionTier?: string;
+    stripeSubscriptionId?: string | null;
+    subscriptionEndsAt?: Date | null;
+  }): Promise<User> {
     const user = this.users.get(userId);
     if (!user) throw new Error('User not found');
     const updated = {
       ...user,
-      subscriptionStatus: status,
-      subscriptionEndsAt: endsAt || null,
+      ...(updates.subscriptionStatus !== undefined && { subscriptionStatus: updates.subscriptionStatus }),
+      ...(updates.subscriptionTier !== undefined && { subscriptionTier: updates.subscriptionTier }),
+      ...(updates.stripeSubscriptionId !== undefined && { stripeSubscriptionId: updates.stripeSubscriptionId }),
+      ...(updates.subscriptionEndsAt !== undefined && { subscriptionEndsAt: updates.subscriptionEndsAt }),
       updatedAt: new Date(),
     };
     this.users.set(userId, updated);
@@ -150,6 +168,11 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getUserByStripeCustomerId(customerId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.stripeCustomerId, customerId));
+    return user || undefined;
+  }
+
   async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
@@ -182,14 +205,21 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateSubscriptionStatus(userId: string, status: string, endsAt?: Date): Promise<User> {
+  async updateSubscriptionStatus(userId: string, updates: {
+    subscriptionStatus?: string;
+    subscriptionTier?: string;
+    stripeSubscriptionId?: string | null;
+    subscriptionEndsAt?: Date | null;
+  }): Promise<User> {
+    const updateData: any = { updatedAt: new Date() };
+    if (updates.subscriptionStatus !== undefined) updateData.subscriptionStatus = updates.subscriptionStatus;
+    if (updates.subscriptionTier !== undefined) updateData.subscriptionTier = updates.subscriptionTier;
+    if (updates.stripeSubscriptionId !== undefined) updateData.stripeSubscriptionId = updates.stripeSubscriptionId;
+    if (updates.subscriptionEndsAt !== undefined) updateData.subscriptionEndsAt = updates.subscriptionEndsAt;
+
     const [user] = await db
       .update(users)
-      .set({
-        subscriptionStatus: status,
-        subscriptionEndsAt: endsAt || null,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(users.id, userId))
       .returning();
     

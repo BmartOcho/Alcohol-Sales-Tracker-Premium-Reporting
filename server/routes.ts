@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
@@ -13,6 +14,104 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Stripe webhook endpoint - must come before JSON parsing middleware
+  // This endpoint needs raw body for signature verification
+  app.post('/api/stripe-webhook', 
+    express.raw({ type: 'application/json' }),
+    async (req, res) => {
+      const sig = req.headers['stripe-signature'];
+      
+      if (!sig) {
+        return res.status(400).send('Missing stripe-signature header');
+      }
+
+      let event: Stripe.Event;
+
+      try {
+        // Verify webhook signature - STRIPE_WEBHOOK_SECRET is required for security
+        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+        if (!webhookSecret) {
+          console.error('Missing STRIPE_WEBHOOK_SECRET - webhook verification required');
+          return res.status(500).send('Server configuration error: webhook secret not configured');
+        }
+        
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } catch (err: any) {
+        console.error('Webhook signature verification failed:', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+      }
+
+      // Handle the event
+      try {
+        switch (event.type) {
+          case 'payment_intent.succeeded': {
+            const paymentIntent = event.data.object as Stripe.PaymentIntent;
+            const userId = paymentIntent.metadata.userId;
+            const tier = paymentIntent.metadata.tier;
+
+            if (userId && tier === 'lifetime') {
+              // Update user to lifetime access
+              await storage.updateSubscriptionStatus(userId, {
+                subscriptionStatus: 'active',
+                subscriptionTier: 'lifetime',
+                subscriptionEndsAt: null, // Lifetime never ends
+              });
+              console.log(`User ${userId} upgraded to lifetime access`);
+            }
+            break;
+          }
+
+          case 'customer.subscription.created':
+          case 'customer.subscription.updated': {
+            const subscription = event.data.object as Stripe.Subscription;
+            const customerId = subscription.customer as string;
+
+            // Find user by Stripe customer ID
+            const user = await storage.getUserByStripeCustomerId(customerId);
+            if (user) {
+              const status = subscription.status === 'active' ? 'active' : 
+                           subscription.status === 'past_due' ? 'past_due' : 
+                           subscription.status === 'canceled' ? 'canceled' : 'free';
+
+              await storage.updateSubscriptionStatus(user.id, {
+                subscriptionStatus: status,
+                subscriptionTier: status === 'active' ? 'pro' : user.subscriptionTier,
+                stripeSubscriptionId: subscription.id,
+                subscriptionEndsAt: subscription.cancel_at ? new Date(subscription.cancel_at * 1000) : null,
+              });
+              console.log(`User ${user.id} subscription ${event.type}: ${status}`);
+            }
+            break;
+          }
+
+          case 'customer.subscription.deleted': {
+            const subscription = event.data.object as Stripe.Subscription;
+            const customerId = subscription.customer as string;
+
+            const user = await storage.getUserByStripeCustomerId(customerId);
+            if (user) {
+              await storage.updateSubscriptionStatus(user.id, {
+                subscriptionStatus: 'canceled',
+                subscriptionTier: 'free',
+                stripeSubscriptionId: null,
+              });
+              console.log(`User ${user.id} subscription canceled`);
+            }
+            break;
+          }
+
+          default:
+            console.log(`Unhandled event type: ${event.type}`);
+        }
+
+        res.json({ received: true });
+      } catch (err: any) {
+        console.error('Error handling webhook event:', err);
+        res.status(500).send(`Webhook handler error: ${err.message}`);
+      }
+    }
+  );
+
   // Setup Replit Auth (from blueprint:javascript_log_in_with_replit)
   await setupAuth(app);
 
