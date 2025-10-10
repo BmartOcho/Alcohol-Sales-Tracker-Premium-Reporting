@@ -2,11 +2,12 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, TrendingUp, Loader2 } from "lucide-react";
+import { AlertCircle, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import type { LocationSummary } from "@shared/schema";
 
 const COUNTY_CODE_TO_NAME: Record<string, string> = {
@@ -63,15 +64,13 @@ const COUNTY_CODE_TO_NAME: Record<string, string> = {
   "251": "Yoakum", "252": "Young", "253": "Zapata", "254": "Zavala"
 };
 
-const YEARS = ["2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025"];
+const COLORS = {
+  beer: "#f59e0b",
+  wine: "#dc2626", 
+  liquor: "#3b82f6"
+};
 
-const ALCOHOL_TYPES = [
-  { value: "beer", label: "Beer", color: "#f59e0b" },
-  { value: "wine", label: "Wine", color: "#dc2626" },
-  { value: "liquor", label: "Liquor", color: "#3b82f6" }
-] as const;
-
-type AlcoholType = "beer" | "wine" | "liquor";
+type AreaType = "county" | "city" | "zip";
 
 interface OutlierLocation {
   permitNumber: string;
@@ -79,134 +78,261 @@ interface OutlierLocation {
   address: string;
   city: string;
   totalSales: number;
-  selectedTypeSales: number;
-  selectedTypePercent: number;
-  countyAvgPercent: number;
-  differenceFromAvg: number;
+  beerPercent: number;
+  winePercent: number;
+  liquorPercent: number;
+  beerZScore: number;
+  wineZScore: number;
+  liquorZScore: number;
+  maxAbsZScore: number;
+  outlierType: "beer" | "wine" | "liquor";
+}
+
+interface AreaStats {
+  avgBeerPercent: number;
+  avgWinePercent: number;
+  avgLiquorPercent: number;
+  stdBeerPercent: number;
+  stdWinePercent: number;
+  stdLiquorPercent: number;
+}
+
+// Calculate standard deviation
+function calculateStdDev(values: number[], mean: number): number {
+  if (values.length < 2) return 0;
+  const squaredDiffs = values.map(v => Math.pow(v - mean, 2));
+  const variance = squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
+  return Math.sqrt(variance);
 }
 
 export function Outliers() {
-  const [selectedType, setSelectedType] = useState<AlcoholType>("beer");
-  const [selectedYear, setSelectedYear] = useState("2024");
-  const [selectedCounty, setSelectedCounty] = useState("101"); // Harris County default
+  const [areaType, setAreaType] = useState<AreaType>("county");
+  const [areaValue, setAreaValue] = useState("101"); // Harris County default
+  const [startDate, setStartDate] = useState("2024-01-01");
+  const [endDate, setEndDate] = useState("2024-12-31");
+  const [minRevenue, setMinRevenue] = useState("10000");
 
-  // Fetch locations for selected county and year
+  // Fetch locations for selected area and date range
   const { data: locationsData, isLoading, error } = useQuery<{ locations: LocationSummary[]; total: number }>({
-    queryKey: [`/api/locations?startDate=${selectedYear}-01-01&endDate=${selectedYear}-12-31&county=${selectedCounty}&limit=5000`],
-    enabled: !!selectedCounty && !!selectedYear,
+    queryKey: [`/api/locations?startDate=${startDate}&endDate=${endDate}&limit=5000`],
+    enabled: !!startDate && !!endDate,
   });
 
-  // Calculate outliers
-  const outliers = useMemo((): OutlierLocation[] => {
-    if (!locationsData?.locations || locationsData.locations.length === 0) return [];
+  // Calculate outliers using Z-scores
+  const { outliers, areaStats, areaName } = useMemo(() => {
+    if (!locationsData?.locations || locationsData.locations.length === 0) {
+      return { outliers: [], areaStats: null, areaName: "" };
+    }
 
-    const locations = locationsData.locations;
+    const minRev = parseFloat(minRevenue) || 10000;
     
-    // Calculate county totals and average percentage
-    let countyTotalSales = 0;
-    let countyTypeSales = 0;
-
-    locations.forEach(loc => {
-      countyTotalSales += loc.totalSales;
-      if (selectedType === "beer") countyTypeSales += loc.beerSales;
-      else if (selectedType === "wine") countyTypeSales += loc.wineSales;
-      else if (selectedType === "liquor") countyTypeSales += loc.liquorSales;
+    // Filter by area and minimum revenue
+    const filteredLocations = locationsData.locations.filter(loc => {
+      if (loc.totalSales < minRev) return false;
+      
+      if (areaType === "county") {
+        return loc.locationCounty === areaValue;
+      } else if (areaType === "city") {
+        return loc.locationCity.toLowerCase() === areaValue.toLowerCase();
+      } else if (areaType === "zip") {
+        return loc.locationZip === areaValue;
+      }
+      return false;
     });
 
-    const countyAvgPercent = countyTotalSales > 0 ? (countyTypeSales / countyTotalSales) * 100 : 0;
+    if (filteredLocations.length < 3) {
+      return { outliers: [], areaStats: null, areaName: "" };
+    }
 
-    // Calculate each location's difference from county average
-    const results = locations
-      .map(loc => {
-        const totalSales = loc.totalSales;
-        let selectedTypeSales = 0;
-        
-        if (selectedType === "beer") selectedTypeSales = loc.beerSales;
-        else if (selectedType === "wine") selectedTypeSales = loc.wineSales;
-        else if (selectedType === "liquor") selectedTypeSales = loc.liquorSales;
+    // Calculate percentages for each location
+    const locationsWithPercents = filteredLocations.map(loc => ({
+      ...loc,
+      beerPercent: loc.totalSales > 0 ? (loc.beerSales / loc.totalSales) * 100 : 0,
+      winePercent: loc.totalSales > 0 ? (loc.wineSales / loc.totalSales) * 100 : 0,
+      liquorPercent: loc.totalSales > 0 ? (loc.liquorSales / loc.totalSales) * 100 : 0,
+    }));
 
-        const selectedTypePercent = totalSales > 0 ? (selectedTypeSales / totalSales) * 100 : 0;
-        const differenceFromAvg = selectedTypePercent - countyAvgPercent;
+    // Calculate area averages
+    const avgBeerPercent = locationsWithPercents.reduce((sum, loc) => sum + loc.beerPercent, 0) / locationsWithPercents.length;
+    const avgWinePercent = locationsWithPercents.reduce((sum, loc) => sum + loc.winePercent, 0) / locationsWithPercents.length;
+    const avgLiquorPercent = locationsWithPercents.reduce((sum, loc) => sum + loc.liquorPercent, 0) / locationsWithPercents.length;
 
-        return {
-          permitNumber: loc.permitNumber,
-          locationName: loc.locationName,
-          address: `${loc.locationAddress}, ${loc.locationCity}, TX ${loc.locationZip}`,
-          city: loc.locationCity,
-          totalSales,
-          selectedTypeSales,
-          selectedTypePercent,
-          countyAvgPercent,
-          differenceFromAvg
-        };
-      })
-      .filter(loc => loc.differenceFromAvg > 0 && loc.totalSales >= 10000) // Only show positive outliers with meaningful sales
-      .sort((a, b) => b.differenceFromAvg - a.differenceFromAvg)
-      .slice(0, 20); // Top 20 outliers
+    // Calculate standard deviations
+    const stdBeerPercent = calculateStdDev(locationsWithPercents.map(l => l.beerPercent), avgBeerPercent);
+    const stdWinePercent = calculateStdDev(locationsWithPercents.map(l => l.winePercent), avgWinePercent);
+    const stdLiquorPercent = calculateStdDev(locationsWithPercents.map(l => l.liquorPercent), avgLiquorPercent);
 
-    return results;
-  }, [locationsData, selectedType]);
+    const stats: AreaStats = {
+      avgBeerPercent,
+      avgWinePercent,
+      avgLiquorPercent,
+      stdBeerPercent,
+      stdWinePercent,
+      stdLiquorPercent
+    };
+
+    // Calculate Z-scores for each location
+    const locationsWithZScores = locationsWithPercents.map(loc => {
+      const beerZScore = stdBeerPercent > 0 ? (loc.beerPercent - avgBeerPercent) / stdBeerPercent : 0;
+      const wineZScore = stdWinePercent > 0 ? (loc.winePercent - avgWinePercent) / stdWinePercent : 0;
+      const liquorZScore = stdLiquorPercent > 0 ? (loc.liquorPercent - avgLiquorPercent) / stdLiquorPercent : 0;
+
+      // Find which category has the most extreme Z-score
+      const absZScores = [
+        { type: "beer" as const, z: Math.abs(beerZScore) },
+        { type: "wine" as const, z: Math.abs(wineZScore) },
+        { type: "liquor" as const, z: Math.abs(liquorZScore) }
+      ];
+      const maxAbs = absZScores.reduce((max, curr) => curr.z > max.z ? curr : max);
+
+      return {
+        permitNumber: loc.permitNumber,
+        locationName: loc.locationName,
+        address: `${loc.locationAddress}, ${loc.locationCity}, TX ${loc.locationZip}`,
+        city: loc.locationCity,
+        totalSales: loc.totalSales,
+        beerPercent: loc.beerPercent,
+        winePercent: loc.winePercent,
+        liquorPercent: loc.liquorPercent,
+        beerZScore,
+        wineZScore,
+        liquorZScore,
+        maxAbsZScore: maxAbs.z,
+        outlierType: maxAbs.type
+      };
+    });
+
+    // Filter outliers (|Z-score| > 2)
+    const results = locationsWithZScores
+      .filter(loc => loc.maxAbsZScore > 2)
+      .sort((a, b) => b.maxAbsZScore - a.maxAbsZScore);
+
+    // Determine area name
+    let name = areaValue;
+    if (areaType === "county") {
+      name = COUNTY_CODE_TO_NAME[areaValue] || areaValue;
+    }
+
+    return { outliers: results, areaStats: stats, areaName: name };
+  }, [locationsData, areaType, areaValue, minRevenue, startDate, endDate]);
+
+  // Get unique cities and zips for dropdowns
+  const { uniqueCities, uniqueZips } = useMemo(() => {
+    if (!locationsData?.locations) return { uniqueCities: [], uniqueZips: [] };
+    
+    const cities = new Set(locationsData.locations.map(l => l.locationCity).filter(Boolean));
+    const zips = new Set(locationsData.locations.map(l => l.locationZip).filter(Boolean));
+    
+    return {
+      uniqueCities: Array.from(cities).sort(),
+      uniqueZips: Array.from(zips).sort()
+    };
+  }, [locationsData]);
 
   const availableCounties = Object.entries(COUNTY_CODE_TO_NAME)
     .map(([code, name]) => ({ code, name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const selectedAlcoholType = ALCOHOL_TYPES.find(t => t.value === selectedType);
-  const countyName = COUNTY_CODE_TO_NAME[selectedCounty] || selectedCounty;
-
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <Label>Alcohol Type</Label>
-          <Select value={selectedType} onValueChange={(value) => setSelectedType(value as AlcoholType)} data-testid="select-alcohol-type">
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ALCOHOL_TYPES.map(type => (
-                <SelectItem key={type.value} value={type.value}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: type.color }} />
-                    {type.label}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <Label>Area Type</Label>
+            <Select value={areaType} onValueChange={(value) => {
+              setAreaType(value as AreaType);
+              if (value === "county") setAreaValue("101");
+              else if (value === "city" && uniqueCities.length > 0) setAreaValue(uniqueCities[0]);
+              else if (value === "zip" && uniqueZips.length > 0) setAreaValue(uniqueZips[0]);
+            }} data-testid="select-area-type">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="county">County</SelectItem>
+                <SelectItem value="city">City</SelectItem>
+                <SelectItem value="zip">Zip Code</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>{areaType === "county" ? "County" : areaType === "city" ? "City" : "Zip Code"}</Label>
+            {areaType === "county" ? (
+              <Select value={areaValue} onValueChange={setAreaValue} data-testid="select-area-value">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCounties.map(county => (
+                    <SelectItem key={county.code} value={county.code}>
+                      {county.name} County
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : areaType === "city" ? (
+              <Select value={areaValue} onValueChange={setAreaValue} data-testid="select-area-value">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueCities.map(city => (
+                    <SelectItem key={city} value={city}>
+                      {city}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Select value={areaValue} onValueChange={setAreaValue} data-testid="select-area-value">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueZips.map(zip => (
+                    <SelectItem key={zip} value={zip}>
+                      {zip}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <div>
+            <Label>Start Date</Label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              data-testid="input-start-date"
+            />
+          </div>
+
+          <div>
+            <Label>End Date</Label>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              data-testid="input-end-date"
+            />
+          </div>
         </div>
 
-        <div>
-          <Label>County</Label>
-          <Select value={selectedCounty} onValueChange={setSelectedCounty} data-testid="select-county">
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableCounties.map(county => (
-                <SelectItem key={county.code} value={county.code}>
-                  {county.name} County
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
+        <div className="w-64">
           <Label className="flex items-center gap-2">
-            Year
+            Minimum Revenue ($)
             {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           </Label>
-          <Select value={selectedYear} onValueChange={setSelectedYear} data-testid="select-year">
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {YEARS.map(year => (
-                <SelectItem key={year} value={year}>{year}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input
+            type="number"
+            value={minRevenue}
+            onChange={(e) => setMinRevenue(e.target.value)}
+            placeholder="10000"
+            data-testid="input-min-revenue"
+          />
         </div>
       </div>
 
@@ -221,71 +347,98 @@ export function Outliers() {
         </Alert>
       )}
 
-      {!isLoading && !error && outliers.length === 0 && (
+      {!isLoading && !error && areaStats && outliers.length === 0 && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            No outliers found for {countyName} County in {selectedYear}. Try a different county or year.
+            No outliers found in {areaName} {areaType === "county" ? "County" : ""} for the selected date range. 
+            Outliers are locations with Z-score &gt; 2 or &lt; -2 for any alcohol category.
           </AlertDescription>
         </Alert>
       )}
 
-      {outliers.length > 0 && outliers[0] && (
+      {areaStats && outliers.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">
-              Top {selectedAlcoholType?.label} Outliers in {countyName} County ({selectedYear})
+              Statistical Outliers in {areaName} {areaType === "county" ? "County" : ""}
             </h3>
-            <Badge variant="secondary" data-testid="badge-county-average">
-              County Avg: {outliers[0].countyAvgPercent.toFixed(1)}% {selectedAlcoholType?.label}
-            </Badge>
+            <div className="flex gap-2">
+              <Badge variant="outline" style={{ borderColor: COLORS.beer }}>
+                <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS.beer }} />
+                Beer Avg: {areaStats.avgBeerPercent.toFixed(1)}%
+              </Badge>
+              <Badge variant="outline" style={{ borderColor: COLORS.wine }}>
+                <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS.wine }} />
+                Wine Avg: {areaStats.avgWinePercent.toFixed(1)}%
+              </Badge>
+              <Badge variant="outline" style={{ borderColor: COLORS.liquor }}>
+                <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS.liquor }} />
+                Liquor Avg: {areaStats.avgLiquorPercent.toFixed(1)}%
+              </Badge>
+            </div>
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Locations selling disproportionately more {selectedAlcoholType?.label.toLowerCase()} compared to the county average
+            Locations with unusual sales patterns (|Z-score| &gt; 2) sorted by most extreme deviation
           </p>
 
           <div className="grid gap-3">
-            {outliers.map((outlier, index) => (
-              <Card key={outlier.permitNumber} className="hover-elevate" data-testid={`card-outlier-${outlier.permitNumber}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <span className="text-muted-foreground font-normal">#{index + 1}</span>
-                        {outlier.locationName}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">{outlier.address}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-2 justify-end">
-                        <TrendingUp className="h-4 w-4" style={{ color: selectedAlcoholType?.color }} />
-                        <span className="text-2xl font-bold" style={{ color: selectedAlcoholType?.color }}>
-                          +{outlier.differenceFromAvg.toFixed(1)}%
-                        </span>
+            {outliers.map((outlier, index) => {
+              const zScores = [
+                { type: "beer", z: outlier.beerZScore, percent: outlier.beerPercent, avg: areaStats.avgBeerPercent },
+                { type: "wine", z: outlier.wineZScore, percent: outlier.winePercent, avg: areaStats.avgWinePercent },
+                { type: "liquor", z: outlier.liquorZScore, percent: outlier.liquorPercent, avg: areaStats.avgLiquorPercent }
+              ];
+              
+              return (
+                <Card key={outlier.permitNumber} className="hover-elevate" data-testid={`card-outlier-${outlier.permitNumber}`}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <span className="text-muted-foreground font-normal">#{index + 1}</span>
+                          {outlier.locationName}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">{outlier.address}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">above county avg</p>
+                      <div className="text-right">
+                        <div className="flex items-center gap-2 justify-end">
+                          {outlier[`${outlier.outlierType}ZScore`] > 0 ? (
+                            <TrendingUp className="h-4 w-4" style={{ color: COLORS[outlier.outlierType] }} />
+                          ) : (
+                            <TrendingDown className="h-4 w-4" style={{ color: COLORS[outlier.outlierType] }} />
+                          )}
+                          <span className="text-2xl font-bold" style={{ color: COLORS[outlier.outlierType] }}>
+                            Z = {outlier[`${outlier.outlierType}ZScore`].toFixed(2)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 capitalize">{outlier.outlierType} outlier</p>
+                      </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">{selectedAlcoholType?.label} %</p>
-                      <p className="font-semibold">{outlier.selectedTypePercent.toFixed(1)}%</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 gap-4">
+                        {zScores.map(({ type, z, percent, avg }) => (
+                          <div key={type} className="text-sm">
+                            <p className="text-muted-foreground capitalize">{type}</p>
+                            <p className="font-semibold">{percent.toFixed(1)}%</p>
+                            <p className="text-xs text-muted-foreground">
+                              Avg: {avg.toFixed(1)}% (Z={z.toFixed(2)})
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="pt-2 border-t text-sm">
+                        <span className="text-muted-foreground">Total Sales:</span>
+                        <span className="font-semibold ml-2">${outlier.totalSales.toLocaleString()}</span>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">{selectedAlcoholType?.label} Sales</p>
-                      <p className="font-semibold">${outlier.selectedTypeSales.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Total Sales</p>
-                      <p className="font-semibold">${outlier.totalSales.toLocaleString()}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
