@@ -212,6 +212,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // New endpoint for Outliers tab - get unique cities and zips
+  app.get("/api/areas", async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+      
+      // Query database for all locations (uses cache)
+      const locations = await storage.getLocations(startDate, endDate);
+
+      // Extract unique cities and zips
+      const cities = new Set<string>();
+      const zips = new Set<string>();
+      
+      locations.forEach(location => {
+        if (location.locationCity) cities.add(location.locationCity);
+        if (location.locationZip) zips.add(location.locationZip);
+      });
+
+      res.json({
+        cities: Array.from(cities).sort(),
+        zips: Array.from(zips).sort()
+      });
+    } catch (error) {
+      console.error("Error fetching areas:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch areas",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   app.get("/api/counties", async (req, res) => {
     try {
       const startDate = req.query.startDate as string;

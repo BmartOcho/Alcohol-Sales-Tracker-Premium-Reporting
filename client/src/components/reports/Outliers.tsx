@@ -112,17 +112,16 @@ export function Outliers() {
   const [endDate, setEndDate] = useState("2024-12-31");
   const [minRevenue, setMinRevenue] = useState("10000");
 
-  // Fetch ALL locations for populating city/zip dropdowns (without area filter)
-  const allLocationsParams = useMemo(() => {
+  // Fetch unique cities and zips for dropdowns from dedicated endpoint
+  const areasParams = useMemo(() => {
     const params = new URLSearchParams();
-    params.append('startDate', startDate);
-    params.append('endDate', endDate);
-    params.append('limit', '10000');
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
     return params.toString();
   }, [startDate, endDate]);
 
-  const { data: allLocationsData } = useQuery<{ locations: LocationSummary[]; total: number }>({
-    queryKey: [`/api/locations?${allLocationsParams}`],
+  const { data: areasData } = useQuery<{ cities: string[]; zips: string[] }>({
+    queryKey: [`/api/areas?${areasParams}`],
     enabled: !!startDate && !!endDate,
   });
 
@@ -243,18 +242,9 @@ export function Outliers() {
     return { outliers: results, areaStats: stats, areaName: name };
   }, [locationsData, areaType, areaValue]);
 
-  // Get unique cities and zips for dropdowns from ALL locations
-  const { uniqueCities, uniqueZips } = useMemo(() => {
-    if (!allLocationsData?.locations) return { uniqueCities: [], uniqueZips: [] };
-    
-    const cities = new Set(allLocationsData.locations.map(l => l.locationCity).filter(Boolean));
-    const zips = new Set(allLocationsData.locations.map(l => l.locationZip).filter(Boolean));
-    
-    return {
-      uniqueCities: Array.from(cities).sort(),
-      uniqueZips: Array.from(zips).sort()
-    };
-  }, [allLocationsData]);
+  // Get unique cities and zips from the areas endpoint
+  const uniqueCities = areasData?.cities || [];
+  const uniqueZips = areasData?.zips || [];
 
   const availableCounties = Object.entries(COUNTY_CODE_TO_NAME)
     .map(([code, name]) => ({ code, name }))
