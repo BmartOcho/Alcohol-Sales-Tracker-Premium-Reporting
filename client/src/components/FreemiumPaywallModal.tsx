@@ -6,9 +6,10 @@ import { useLocation } from "wouter";
 interface FreemiumPaywallModalProps {
   open: boolean;
   searchesUsed: number;
+  reason?: 'search_limit' | 'data_access';
 }
 
-export function FreemiumPaywallModal({ open, searchesUsed }: FreemiumPaywallModalProps) {
+export function FreemiumPaywallModal({ open, searchesUsed, reason = 'search_limit' }: FreemiumPaywallModalProps) {
   const [, setLocation] = useLocation();
 
   const handleSignIn = () => {
@@ -18,6 +19,12 @@ export function FreemiumPaywallModal({ open, searchesUsed }: FreemiumPaywallModa
   const handleSignUp = () => {
     setLocation("/signup");
   };
+
+  const isSearchLimit = reason === 'search_limit';
+  const title = isSearchLimit ? 'Search Limit Reached' : 'Premium Data Access';
+  const description = isSearchLimit 
+    ? `You've used all ${searchesUsed} free searches today. Sign in to unlock unlimited searches and access full sales data!`
+    : 'Sign in to access detailed location data, historical records, and advanced analytics.';
 
   return (
     <Dialog open={open} onOpenChange={() => {}} modal>
@@ -33,10 +40,10 @@ export function FreemiumPaywallModal({ open, searchesUsed }: FreemiumPaywallModa
             <Lock className="h-8 w-8 text-primary" />
           </div>
           <DialogTitle className="text-2xl font-bold">
-            Search Limit Reached
+            {title}
           </DialogTitle>
           <DialogDescription className="text-base pt-2">
-            You've used all {searchesUsed} free searches today. Sign in to unlock unlimited searches and access full sales data!
+            {description}
           </DialogDescription>
         </DialogHeader>
 

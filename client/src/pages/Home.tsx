@@ -79,6 +79,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallReason, setPaywallReason] = useState<'search_limit' | 'data_access'>('search_limit');
   const [remainingSearches, setRemainingSearches] = useState(3);
   const ITEMS_PER_PAGE = 100;
 
@@ -276,11 +277,20 @@ export default function Home() {
                 </SelectTrigger>
                 <SelectContent>
                   {availableYears.map(year => (
-                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                    <SelectItem key={year} value={year}>
+                      {year}{year !== "2025" ? " (Login required)" : ""}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* Historical data notice */}
+            {selectedYear !== "2025" && (
+              <p className="text-xs text-amber-600 dark:text-amber-500 px-1">
+                Historical data requires sign in to view
+              </p>
+            )}
 
             <div className="space-y-2">
               <div className="relative">
@@ -303,6 +313,7 @@ export default function Home() {
                         
                         // Show paywall if limit reached
                         if (shouldShowPaywall()) {
+                          setPaywallReason('search_limit');
                           setShowPaywall(true);
                         }
                       }
@@ -391,17 +402,32 @@ export default function Home() {
                   // Calculate global rank based on filteredLocations (not paginated)
                   const globalIndex = filteredLocations.findIndex(loc => loc.permitNumber === location.permitNumber);
                   const rank = globalIndex + 1;
-                  const isTopTen = rank <= 10;
-                  const shouldBlur = !isTopTen;
+                  
+                  // Top 10 badges only show when viewing all Texas or county-filtered (NOT during searches)
+                  const showTopTenBadge = !searchQuery.trim() && rank <= 10;
+                  const shouldBlur = !searchQuery.trim() && rank > 10;
+                  
+                  // Historical data or blurred locations require login
+                  const isHistoricalYear = selectedYear !== "2025";
+                  const requiresLogin = isHistoricalYear || shouldBlur;
+                  
+                  const handleClick = () => {
+                    if (requiresLogin) {
+                      setPaywallReason('data_access');
+                      setShowPaywall(true);
+                    } else {
+                      setSelectedPermitNumber(location.permitNumber);
+                    }
+                  };
                   
                   return (
                     <Card 
                       key={location.permitNumber}
                       className={`p-2 lg:p-4 hover-elevate active-elevate-2 cursor-pointer transition-all relative ${shouldBlur ? 'opacity-60' : ''}`}
-                      onClick={() => setSelectedPermitNumber(location.permitNumber)}
+                      onClick={handleClick}
                       data-testid={`card-location-${location.permitNumber}`}
                     >
-                      {isTopTen && (
+                      {showTopTenBadge && (
                         <Badge 
                           className="absolute -top-2 -left-2 bg-green-600 hover:bg-green-600 text-white border-green-700 z-10"
                           data-testid={`badge-rank-${rank}`}
@@ -410,7 +436,7 @@ export default function Home() {
                         </Badge>
                       )}
                       
-                      <div className="space-y-2">
+                      <div className={`space-y-2 ${shouldBlur ? 'blur-sm' : ''}`}>
                         <div>
                           <h3 className="font-semibold truncate">{location.locationName}</h3>
                           <p className="text-xs text-muted-foreground truncate">
@@ -420,7 +446,7 @@ export default function Home() {
                             {location.locationCity}, {location.locationCounty}
                           </p>
                         </div>
-                        <div className={`flex items-center justify-between ${shouldBlur ? 'blur-sm' : ''}`}>
+                        <div className="flex items-center justify-between">
                           <p className="font-mono font-bold text-lg">
                             ${location.totalSales.toLocaleString()}
                           </p>
@@ -498,6 +524,7 @@ export default function Home() {
       <FreemiumPaywallModal
         open={showPaywall}
         searchesUsed={getSearchCount()}
+        reason={paywallReason}
       />
 
       {/* Map Section */}
