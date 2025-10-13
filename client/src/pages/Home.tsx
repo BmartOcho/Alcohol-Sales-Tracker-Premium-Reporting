@@ -326,7 +326,12 @@ export default function Home() {
                       setShowPaywall(true);
                     }
                   }}
-                  disabled={!isAuthenticated}
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      setPaywallReason('data_access');
+                      setShowPaywall(true);
+                    }
+                  }}
                   className="pl-9"
                   data-testid="input-search"
                 />
@@ -443,12 +448,13 @@ export default function Home() {
                   const rank = globalIndex + 1;
                   
                   // Top 10 badges only show when viewing all Texas or county-filtered (NOT during searches)
-                  const showTopTenBadge = !searchQuery.trim() && rank <= 10;
-                  const shouldBlur = !searchQuery.trim() && rank > 10;
+                  // Only show for unauthenticated users to highlight available data
+                  const showTopTenBadge = !isAuthenticated && !searchQuery.trim() && rank <= 10;
                   
-                  // Historical data or blurred locations require login
+                  // Only blur and restrict access for unauthenticated users
+                  const shouldBlur = !isAuthenticated && !searchQuery.trim() && rank > 10;
                   const isHistoricalYear = selectedYear !== "2025";
-                  const requiresLogin = isHistoricalYear || shouldBlur;
+                  const requiresLogin = !isAuthenticated && (isHistoricalYear || shouldBlur);
                   
                   const handleClick = () => {
                     if (requiresLogin) {
