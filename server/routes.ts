@@ -328,6 +328,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DEBUG: Test Stripe API directly
+  app.get('/api/test-stripe', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.email) {
+        return res.json({ error: 'User not found or no email' });
+      }
+
+      // Test 1: Create a customer
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: 'Test Customer',
+      });
+
+      // Test 2: Get/create product
+      let product = await stripe.products.create({
+        name: 'Test Product ' + Date.now(),
+      });
+
+      // Test 3: Create price
+      const price = await stripe.prices.create({
+        product: product.id,
+        unit_amount: 1000,
+        currency: 'usd',
+        recurring: { interval: 'month' },
+      });
+
+      // Test 4: Create subscription
+      const subscription = await stripe.subscriptions.create({
+        customer: customer.id,
+        items: [{ price: price.id }],
+        payment_behavior: 'default_incomplete',
+        payment_settings: { save_default_payment_method: 'on_subscription' },
+        expand: ['latest_invoice.payment_intent'],
+      });
+
+      // Test 5: Get client secret
+      let clientSecret = null;
+      if (subscription.latest_invoice) {
+        const invoiceId = typeof subscription.latest_invoice === 'string' 
+          ? subscription.latest_invoice 
+          : subscription.latest_invoice.id;
+        
+        const invoice = await stripe.invoices.retrieve(invoiceId);
+        
+        if (invoice.payment_intent) {
+          const paymentIntentId = typeof invoice.payment_intent === 'string'
+            ? invoice.payment_intent
+            : invoice.payment_intent.id;
+          
+          const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+          clientSecret = paymentIntent.client_secret;
+        }
+      }
+
+      res.json({
+        success: true,
+        customerId: customer.id,
+        productId: product.id,
+        priceId: price.id,
+        subscriptionId: subscription.id,
+        subscriptionStatus: subscription.status,
+        clientSecret: clientSecret,
+        clientSecretExists: !!clientSecret,
+      });
+    } catch (error: any) {
+      res.json({ error: error.message, stack: error.stack });
+    }
+  });
+
   // Stripe one-time payment route for lifetime access (from blueprint:javascript_stripe)
   app.post('/api/create-payment-intent', isAuthenticated, async (req: any, res) => {
     try {
