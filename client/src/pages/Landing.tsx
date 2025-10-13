@@ -23,21 +23,38 @@ export default function Landing() {
           name: "Texas Alcohol Sales Map",
           description: "Interactive mapping and analytics platform for Texas alcohol sales data",
           applicationCategory: "BusinessApplication",
-          offers: {
-            "@type": "Offer",
-            price: "20.00",
-            priceCurrency: "USD",
-            priceSpecification: {
-              "@type": "UnitPriceSpecification",
-              price: "20.00",
+          offers: [
+            {
+              "@type": "Offer",
+              price: "10.00",
               priceCurrency: "USD",
-              referenceQuantity: {
-                "@type": "QuantitativeValue",
-                value: "1",
-                unitCode: "MON"
+              priceSpecification: {
+                "@type": "UnitPriceSpecification",
+                price: "10.00",
+                priceCurrency: "USD",
+                referenceQuantity: {
+                  "@type": "QuantitativeValue",
+                  value: "1",
+                  unitCode: "MON"
+                }
+              }
+            },
+            {
+              "@type": "Offer",
+              price: "100.00",
+              priceCurrency: "USD",
+              priceSpecification: {
+                "@type": "UnitPriceSpecification",
+                price: "100.00",
+                priceCurrency: "USD",
+                referenceQuantity: {
+                  "@type": "QuantitativeValue",
+                  value: "1",
+                  unitCode: "ANN"
+                }
               }
             }
-          },
+          ],
           featureList: [
             "Interactive map with 22,000+ Texas locations",
             "Detailed sales analytics and reports",
