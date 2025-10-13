@@ -253,10 +253,13 @@ export default function Home() {
       {/* Sidebar */}
       <div className="w-full lg:w-96 border-r bg-card flex flex-col h-[65vh] lg:h-full">
         <div className="p-3 lg:p-4 border-b space-y-3">
-          {/* Title */}
-          <div className="flex items-center gap-2">
-            <Star className="h-5 w-5 lg:h-6 lg:w-6 text-primary flex-shrink-0" />
-            <h1 className="text-lg lg:text-xl font-bold">Texas Alcohol Sales</h1>
+          {/* Title with Theme Toggle */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 lg:h-6 lg:w-6 text-primary flex-shrink-0" />
+              <h1 className="text-lg lg:text-xl font-bold">Texas Alcohol Sales</h1>
+            </div>
+            <ThemeToggle />
           </div>
           
           {/* Buttons Row */}
@@ -270,17 +273,6 @@ export default function Home() {
                 <FileText className="h-4 w-4" />
               </Button>
             </Link>
-            {!isAuthenticated && (
-              <Link href="/subscribe">
-                <Button variant="default" size="sm" data-testid="button-subscribe" className="hidden sm:flex">
-                  Upgrade
-                </Button>
-                <Button variant="default" size="icon" data-testid="button-subscribe-mobile" className="sm:hidden h-8 w-8">
-                  <Star className="h-4 w-4" />
-                </Button>
-              </Link>
-            )}
-            <ThemeToggle />
             
             {/* Auth Menu */}
             {isAuthenticated ? (
