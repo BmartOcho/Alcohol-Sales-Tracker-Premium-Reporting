@@ -75,12 +75,19 @@ export default function Subscribe() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    // Reset states when plan changes
+    setClientSecret("");
+    setError("");
+    
     // Create subscription for both monthly and yearly plans
     const endpoint = '/api/create-subscription';
     const payload = { plan: selectedPlan };
+    
+    console.log('[Subscribe] Creating subscription for plan:', selectedPlan);
 
     apiRequest("POST", endpoint, payload)
       .then((res) => {
+        console.log('[Subscribe] API response status:', res.status);
         if (!res.ok) {
           return res.json().then(data => {
             throw new Error(data.message || 'Failed to create payment');
@@ -89,10 +96,11 @@ export default function Subscribe() {
         return res.json();
       })
       .then((data) => {
+        console.log('[Subscribe] Received clientSecret:', data.clientSecret ? 'YES' : 'NO');
         setClientSecret(data.clientSecret);
       })
       .catch((err) => {
-        console.error('Error creating payment:', err);
+        console.error('[Subscribe] Error creating payment:', err);
         setError(err.message);
       });
   }, [selectedPlan]);

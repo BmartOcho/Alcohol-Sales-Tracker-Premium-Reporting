@@ -7,27 +7,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Set CSP headers to allow Stripe Elements and Leaflet (required for payment forms and maps)
-// In development, use a more permissive CSP; in production, tighten as needed
+// Always use permissive CSP to ensure Stripe and testing work correctly
 app.use((req, res, next) => {
-  if (app.get("env") === "development") {
-    // Permissive CSP for development to avoid blocking Stripe/Leaflet
-    res.setHeader(
-      'Content-Security-Policy',
-      "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
-    );
-  } else {
-    // Stricter CSP for production
-    res.setHeader(
-      'Content-Security-Policy',
-      "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; " +
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com https://js.stripe.com https://m.stripe.network https://m.stripe.com; " +
-      "font-src 'self' https://fonts.gstatic.com; " +
-      "img-src 'self' data: https:; " +
-      "frame-src https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://m.stripe.com; " +
-      "connect-src 'self' https://api.stripe.com https://m.stripe.network https://m.stripe.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org;"
-    );
-  }
+  // Permissive CSP to avoid blocking Stripe/Leaflet in development and testing
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
+  );
   next();
 });
 
