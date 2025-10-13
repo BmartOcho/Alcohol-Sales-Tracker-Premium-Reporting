@@ -74,8 +74,8 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-2 lg:gap-4 flex-shrink-0">
             <ThemeToggle />
-            <Button onClick={handleLogin} data-testid="button-login" size="sm" className="lg:text-base">
-              Log In
+            <Button onClick={handleLogin} data-testid="button-login" size="sm" className="text-xs lg:text-base">
+              Sign In with Google/GitHub
             </Button>
           </div>
         </div>
@@ -91,10 +91,13 @@ export default function Landing() {
             <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
               Interactive mapping and analytics for mixed beverage gross receipts across Texas establishments
             </p>
-            <div className="pt-2 lg:pt-4">
+            <div className="pt-2 lg:pt-4 space-y-3">
               <Button size="lg" onClick={handleLogin} className="text-base lg:text-lg px-6 lg:px-8" data-testid="button-hero-login">
-                Get Started
+                Get Started - Sign In with Google/GitHub
               </Button>
+              <p className="text-xs text-muted-foreground">
+                🔒 Secure authentication • Use your existing account • No new passwords needed
+              </p>
             </div>
           </div>
 
@@ -159,10 +162,10 @@ export default function Landing() {
           <div className="text-center space-y-4 py-8">
             <h3 className="text-2xl font-bold">Ready to explore?</h3>
             <p className="text-muted-foreground">
-              Log in to access the full map, analytics, and reporting tools
+              Sign in with Google/GitHub to access the full map, analytics, and reporting tools
             </p>
             <Button size="lg" onClick={handleLogin} data-testid="button-footer-login">
-              Access the Platform
+              Sign In with Google/GitHub
             </Button>
           </div>
         </div>

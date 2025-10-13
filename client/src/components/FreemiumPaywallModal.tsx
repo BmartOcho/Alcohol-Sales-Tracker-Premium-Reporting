@@ -61,7 +61,7 @@ export function FreemiumPaywallModal({ open, searchesUsed, reason = 'search_limi
             onClick={handleSignIn}
             data-testid="button-paywall-signin"
           >
-            Sign In to Continue
+            Sign In with Google/GitHub
           </Button>
 
           <div className="text-center">
@@ -73,11 +73,12 @@ export function FreemiumPaywallModal({ open, searchesUsed, reason = 'search_limi
               Don't have an account? Sign up free
             </button>
           </div>
+          
+          <div className="text-center text-xs text-muted-foreground pt-2 space-y-1">
+            <p>🔒 Secure login powered by Replit Auth</p>
+            <p>Use your existing Google or GitHub account</p>
+          </div>
         </div>
-
-        <p className="text-xs text-center text-muted-foreground pt-2">
-          Free tier resets daily at midnight
-        </p>
       </DialogContent>
     </Dialog>
   );

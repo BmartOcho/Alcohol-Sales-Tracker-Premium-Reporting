@@ -139,11 +139,14 @@ export default function Subscribe() {
         type="website"
       />
       <div className="max-w-4xl mx-auto py-4 lg:py-8 space-y-6 lg:space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl lg:text-3xl font-bold">Upgrade to Pro</h1>
+        <div className="text-center space-y-3">
+          <h1 className="text-2xl lg:text-3xl font-bold">Welcome! Complete Your Subscription</h1>
           <p className="text-sm lg:text-base text-muted-foreground">
-            Choose the plan that works best for you
+            Choose your plan and complete payment to unlock full access to all features
           </p>
+          <div className="inline-block bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm">
+            ✨ After payment, you'll have instant access to all 22,000+ locations and historical data
+          </div>
         </div>
 
         {/* Plan Selection Cards */}

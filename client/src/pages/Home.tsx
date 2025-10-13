@@ -317,7 +317,7 @@ export default function Home() {
                 onClick={() => window.location.href = '/api/login'}
                 data-testid="button-signin"
               >
-                Sign In
+                Sign In with Google/GitHub
               </Button>
             )}
           </div>

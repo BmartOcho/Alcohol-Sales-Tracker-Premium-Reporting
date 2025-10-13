@@ -110,10 +110,38 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.get("/api/callback", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
+  app.get("/api/callback", async (req, res, next) => {
+    passport.authenticate(`replitauth:${req.hostname}`, async (err: any, user: any) => {
+      if (err) {
+        return next(err);
+      }
+      if (!user) {
+        return res.redirect("/api/login");
+      }
+      
+      req.logIn(user, async (err) => {
+        if (err) {
+          return next(err);
+        }
+        
+        // Check user's subscription status and redirect accordingly
+        try {
+          const userId = user.claims.sub;
+          const dbUser = await storage.getUser(userId);
+          
+          // If user exists and has a paid subscription, go to home
+          if (dbUser && (dbUser.subscriptionTier === 'pro' || dbUser.subscriptionTier === 'lifetime')) {
+            return res.redirect("/");
+          }
+          
+          // Otherwise, redirect to subscribe page
+          return res.redirect("/subscribe");
+        } catch (error) {
+          console.error("Error checking subscription status:", error);
+          // On error, redirect to subscribe to be safe
+          return res.redirect("/subscribe");
+        }
+      });
     })(req, res, next);
   });
 
