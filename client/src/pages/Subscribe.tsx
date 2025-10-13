@@ -79,6 +79,7 @@ export default function Subscribe() {
   useEffect(() => {
     // Only create subscription if user is authenticated
     if (!isAuthenticated) {
+      console.log('[Subscribe] Not authenticated, skipping subscription creation');
       return;
     }
 
@@ -91,11 +92,15 @@ export default function Subscribe() {
     const payload = { plan: selectedPlan };
     
     console.log('[Subscribe] Creating subscription for plan:', selectedPlan);
+    console.log('[Subscribe] isAuthenticated:', isAuthenticated);
 
     apiRequest("POST", endpoint, payload)
       .then((res) => {
         console.log('[Subscribe] API response status:', res.status);
         if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error('Session expired. Please sign in again.');
+          }
           return res.json().then(data => {
             throw new Error(data.message || 'Failed to create payment');
           });
