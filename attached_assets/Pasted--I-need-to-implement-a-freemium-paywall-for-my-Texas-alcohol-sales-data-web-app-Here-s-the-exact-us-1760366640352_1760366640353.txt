@@ -1,0 +1,46 @@
+"I need to implement a freemium paywall for my Texas alcohol sales data web app. Here's the exact user experience I want:
+INITIAL EXPERIENCE (No login required):
+
+User lands on page and IMMEDIATELY sees the interactive map with all data visible
+Map shows ALL locations as pins/markers (not blurred)
+User can click on map and see top 10 results per county, sorted by sales volume
+Each result shows: business name, address, and total monthly sales
+Search bar is visible and functional at the top
+
+FREE USER LIMITS (Before requiring sign-in):
+
+After user clicks on 3 specific businesses (not counties, but individual bars/restaurants), trigger the paywall
+Track these 3 clicks in browser localStorage (so it persists across page refreshes)
+On the 4th click, apply blur effect to the data display
+Show modal overlay: 'Sign in to see unlimited searches and full data access'
+County top-10 lists remain visible even after 3 clicks (only individual business detail views count toward limit)
+
+VISUAL IMPLEMENTATION:
+
+Use CSS blur filter (blur(8px)) on data sections when limit reached
+Modal should be centered, not dismissible (no X button), with two buttons: 'Sign In' and 'Create Account'
+Show counter: 'X searches remaining' after each click (e.g., '2 searches remaining')
+Make the counter prominent but not annoying
+
+TECHNICAL REQUIREMENTS:
+
+Track click count in localStorage with key 'searchCount'
+Store list of clicked business IDs to prevent counting same business multiple times
+Reset counter daily at midnight (store timestamp in localStorage)
+Make sure the map and top-10 lists are immediately visible on page load (no loading states that slow first impression)
+
+EDGE CASES TO HANDLE:
+
+What if user clears localStorage? (Reset counter)
+What if user opens in incognito? (Fresh counter, that's fine)
+Mobile responsive design for the modal
+Make sure blur effect doesn't break layout
+
+MY CURRENT TECH STACK: [Insert your actual stack - e.g., 'React frontend, Node.js backend, PostgreSQL database, Mapbox for maps']
+Please provide the complete code implementation including:
+
+The localStorage tracking logic
+The blur CSS and modal HTML/JSX
+The click handler that increments the counter
+The modal component
+How to integrate this with my existing [map component/search function]"
