@@ -16,7 +16,7 @@ if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
 }
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
-const SubscribeForm = () => {
+const SubscribeForm = ({ setupIntentId }: { setupIntentId: string }) => {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
@@ -31,11 +31,13 @@ const SubscribeForm = () => {
 
     setIsSubmitting(true);
 
-    const { error } = await stripe.confirmPayment({
+    // Confirm the SetupIntent with payment method
+    const { error, setupIntent } = await stripe.confirmSetup({
       elements,
       confirmParams: {
-        return_url: window.location.origin,
+        return_url: window.location.origin + '/subscribe?success=true',
       },
+      redirect: 'if_required',
     });
 
     if (error) {
@@ -45,11 +47,35 @@ const SubscribeForm = () => {
         variant: "destructive",
       });
       setIsSubmitting(false);
-    } else {
-      toast({
-        title: "Payment Successful",
-        description: "You are now subscribed!",
-      });
+    } else if (setupIntent && setupIntent.status === 'succeeded') {
+      // Payment method saved, now create the subscription
+      try {
+        const response = await apiRequest("POST", '/api/complete-subscription', {
+          setupIntentId: setupIntent.id,
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.message || 'Failed to create subscription');
+        }
+
+        toast({
+          title: "Subscription Successful!",
+          description: "Welcome to Pro! Redirecting...",
+        });
+
+        // Redirect to home after success
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
+      } catch (err: any) {
+        toast({
+          title: "Subscription Error",
+          description: err.message,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -74,24 +100,26 @@ export default function Subscribe() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('monthly');
   const [clientSecret, setClientSecret] = useState("");
+  const [setupIntentId, setSetupIntentId] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Only create subscription if user is authenticated
+    // Only create SetupIntent if user is authenticated
     if (!isAuthenticated) {
-      console.log('[Subscribe] Not authenticated, skipping subscription creation');
+      console.log('[Subscribe] Not authenticated, skipping setup');
       return;
     }
 
     // Reset states when plan changes
     setClientSecret("");
+    setSetupIntentId("");
     setError("");
     
-    // Create subscription for both monthly and yearly plans
+    // Create SetupIntent for payment method collection
     const endpoint = '/api/create-subscription';
     const payload = { plan: selectedPlan };
     
-    console.log('[Subscribe] Creating subscription for plan:', selectedPlan);
+    console.log('[Subscribe] Creating SetupIntent for plan:', selectedPlan);
     console.log('[Subscribe] isAuthenticated:', isAuthenticated);
 
     apiRequest("POST", endpoint, payload)
@@ -102,17 +130,19 @@ export default function Subscribe() {
             throw new Error('Session expired. Please sign in again.');
           }
           return res.json().then(data => {
-            throw new Error(data.message || 'Failed to create payment');
+            throw new Error(data.message || 'Failed to create setup');
           });
         }
         return res.json();
       })
       .then((data) => {
         console.log('[Subscribe] Received clientSecret:', data.clientSecret ? 'YES' : 'NO');
+        console.log('[Subscribe] Received setupIntentId:', data.setupIntentId ? 'YES' : 'NO');
         setClientSecret(data.clientSecret);
+        setSetupIntentId(data.setupIntentId);
       })
       .catch((err) => {
-        console.error('[Subscribe] Error creating payment:', err);
+        console.error('[Subscribe] Error creating setup:', err);
         setError(err.message);
       });
   }, [selectedPlan, isAuthenticated]);
@@ -317,7 +347,7 @@ export default function Subscribe() {
             </CardHeader>
             <CardContent>
               <Elements stripe={stripePromise} options={{ clientSecret }} key={clientSecret}>
-                <SubscribeForm />
+                <SubscribeForm setupIntentId={setupIntentId} />
               </Elements>
             </CardContent>
           </Card>

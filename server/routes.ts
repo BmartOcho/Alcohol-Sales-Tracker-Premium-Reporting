@@ -76,8 +76,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.updateSubscriptionStatus(user.id, {
                 subscriptionStatus: status,
                 subscriptionTier: status === 'active' ? 'pro' : user.subscriptionTier,
-                stripeSubscriptionId: subscription.id,
-                subscriptionEndsAt: subscription.cancel_at ? new Date(subscription.cancel_at * 1000) : undefined,
+                stripeSubscriptionId: subscription.id as string,
+                subscriptionEndsAt: subscription.cancel_at ? new Date(subscription.cancel_at * 1000) : null,
               });
               console.log(`User ${user.id} subscription ${event.type}: ${status}`);
             }
@@ -260,78 +260,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create subscription using the price
-      const subscription = await stripe.subscriptions.create({
+      // Create a SetupIntent to collect payment method first
+      // This is the correct flow for subscriptions - collect payment method, then create subscription
+      const setupIntent = await stripe.setupIntents.create({
         customer: customerId,
-        items: [{ price: price.id }],
-        payment_behavior: 'default_incomplete',
-        payment_settings: { save_default_payment_method: 'on_subscription' },
-        expand: ['latest_invoice.payment_intent'],
+        payment_method_types: ['card'],
+        metadata: {
+          userId,
+          priceId: price.id,
+          plan,
+        },
       });
 
-      console.log('[Stripe] Subscription created:', {
-        subscriptionId: subscription.id,
-        status: subscription.status,
-        latestInvoiceType: typeof subscription.latest_invoice,
-        latestInvoiceId: typeof subscription.latest_invoice === 'string' ? subscription.latest_invoice : (subscription.latest_invoice as any)?.id,
+      console.log('[Stripe] SetupIntent created:', {
+        setupIntentId: setupIntent.id,
+        status: setupIntent.status,
+        clientSecret: setupIntent.client_secret ? 'YES' : 'NO',
       });
 
-      // Update user with Stripe info (status remains 'free' until payment confirmed)
-      await storage.updateUserStripeInfo(userId, customerId, subscription.id);
-
-      // Get the client secret - may need to retrieve invoice if not expanded
-      let clientSecret: string | null = null;
-      
-      if (typeof subscription.latest_invoice === 'string') {
-        // Invoice wasn't expanded, retrieve it manually
-        console.log('[Stripe] Invoice is string ID, retrieving manually:', subscription.latest_invoice);
-        const invoice = await stripe.invoices.retrieve(subscription.latest_invoice, {
-          expand: ['payment_intent'],
-        }) as Stripe.Response<Stripe.Invoice & { payment_intent?: Stripe.PaymentIntent | string | null }>;
-        
-        const paymentIntentData = invoice.payment_intent;
-        
-        console.log('[Stripe] Retrieved invoice:', {
-          id: invoice.id,
-          status: invoice.status,
-          paymentIntentType: typeof paymentIntentData,
-          paymentIntentId: typeof paymentIntentData === 'string' ? paymentIntentData : paymentIntentData?.id,
-        });
-        
-        if (typeof paymentIntentData === 'string') {
-          // PaymentIntent is still a string ID, retrieve it too
-          console.log('[Stripe] PaymentIntent is string, retrieving:', paymentIntentData);
-          const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentData);
-          clientSecret = paymentIntent.client_secret;
-          console.log('[Stripe] Retrieved PaymentIntent client_secret:', clientSecret ? 'YES' : 'NO');
-        } else if (paymentIntentData) {
-          clientSecret = paymentIntentData.client_secret || null;
-          console.log('[Stripe] PaymentIntent expanded, client_secret:', clientSecret ? 'YES' : 'NO');
-        }
-      } else if (subscription.latest_invoice) {
-        // Invoice was expanded
-        console.log('[Stripe] Invoice was expanded, checking payment_intent...');
-        const paymentIntent = (subscription.latest_invoice as any)?.payment_intent;
-        if (typeof paymentIntent === 'string') {
-          console.log('[Stripe] PaymentIntent is string, retrieving:', paymentIntent);
-          const pi = await stripe.paymentIntents.retrieve(paymentIntent);
-          clientSecret = pi.client_secret;
-        } else if (paymentIntent) {
-          clientSecret = paymentIntent.client_secret || null;
-        }
-        console.log('[Stripe] Final client_secret:', clientSecret ? 'YES' : 'NO');
-      }
-
-      if (!clientSecret) {
-        console.error('[Stripe] ERROR: No client_secret found! Subscription:', JSON.stringify(subscription, null, 2));
-      }
+      // Store the setup intent and price info for later subscription creation
+      await storage.updateUserStripeInfo(userId, customerId, setupIntent.id);
 
       res.json({
-        subscriptionId: subscription.id,
-        clientSecret,
+        setupIntentId: setupIntent.id,
+        clientSecret: setupIntent.client_secret,
+        priceId: price.id,
       });
     } catch (error: any) {
       console.error('Error creating subscription:', error);
+      return res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Complete subscription after payment method is confirmed
+  app.post('/api/complete-subscription', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { setupIntentId } = req.body;
+
+      if (!setupIntentId) {
+        return res.status(400).json({ message: 'Missing setupIntentId' });
+      }
+
+      // Retrieve the SetupIntent to get the payment method
+      const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+      
+      if (setupIntent.status !== 'succeeded') {
+        return res.status(400).json({ message: 'Payment method not confirmed' });
+      }
+
+      const paymentMethodId = setupIntent.payment_method as string;
+      const customerId = setupIntent.customer as string;
+      const priceId = setupIntent.metadata?.priceId;
+
+      if (!paymentMethodId || !customerId || !priceId) {
+        return res.status(400).json({ message: 'Invalid SetupIntent data' });
+      }
+
+      // Set the payment method as default for the customer
+      await stripe.customers.update(customerId, {
+        invoice_settings: {
+          default_payment_method: paymentMethodId,
+        },
+      });
+
+      // Now create the subscription with the payment method
+      const subscription = await stripe.subscriptions.create({
+        customer: customerId,
+        items: [{ price: priceId }],
+        default_payment_method: paymentMethodId,
+        expand: ['latest_invoice.payment_intent'],
+      });
+
+      console.log('[Stripe] Subscription created after payment:', {
+        subscriptionId: subscription.id,
+        status: subscription.status,
+      });
+
+      // Update user with subscription info
+      await storage.updateUserStripeInfo(userId, customerId, subscription.id);
+
+      // If subscription is active, upgrade user immediately
+      if (subscription.status === 'active') {
+        await storage.updateSubscriptionStatus(userId, {
+          subscriptionStatus: 'active',
+          subscriptionTier: 'pro',
+          stripeSubscriptionId: subscription.id,
+        });
+        console.log(`[Stripe] User ${userId} upgraded to pro immediately`);
+      }
+
+      res.json({
+        success: true,
+        subscriptionId: subscription.id,
+        status: subscription.status,
+      });
+    } catch (error: any) {
+      console.error('Error completing subscription:', error);
       return res.status(400).json({ message: error.message });
     }
   });
