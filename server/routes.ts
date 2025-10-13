@@ -248,12 +248,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expand: ['latest_invoice.payment_intent'],
       });
 
+      console.log('[Stripe] Subscription created:', {
+        subscriptionId: subscription.id,
+        status: subscription.status,
+        hasLatestInvoice: !!subscription.latest_invoice,
+        invoiceType: typeof subscription.latest_invoice,
+        hasPaymentIntent: !!(subscription.latest_invoice as any)?.payment_intent,
+        hasClientSecret: !!(subscription.latest_invoice as any)?.payment_intent?.client_secret,
+      });
+
       // Update user with Stripe info (status remains 'free' until payment confirmed)
       await storage.updateUserStripeInfo(userId, customerId, subscription.id);
 
+      const clientSecret = (subscription.latest_invoice as any)?.payment_intent?.client_secret;
+      console.log('[Stripe] Returning clientSecret:', clientSecret ? 'YES' : 'NO');
+
       res.json({
         subscriptionId: subscription.id,
-        clientSecret: (subscription.latest_invoice as any)?.payment_intent?.client_secret,
+        clientSecret,
       });
     } catch (error: any) {
       console.error('Error creating subscription:', error);
