@@ -425,8 +425,8 @@ export default function Home() {
                   <div className="text-xs text-muted-foreground">
                     <p>Want to view all locations and search?</p>
                     <Button 
-                      variant="link" 
-                      className="p-0 h-auto font-semibold"
+                      variant="ghost" 
+                      className="p-0 h-auto font-semibold text-primary hover:text-primary/80"
                       onClick={() => {
                         setPaywallReason('data_access');
                         setShowPaywall(true);
