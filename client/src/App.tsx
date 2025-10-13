@@ -16,15 +16,28 @@ function Router() {
 
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
+      {/* Freemium: Home is accessible to everyone */}
+      <Route path="/" component={Home} />
+      
+      {/* Auth pages */}
+      <Route path="/login" component={Landing} />
+      <Route path="/signup" component={Landing} />
+      
+      {/* Protected routes - require authentication */}
+      {isLoading ? (
+        <Route path="/reports" component={() => <div className="flex items-center justify-center h-screen">Loading...</div>} />
+      ) : isAuthenticated ? (
         <>
-          <Route path="/" component={Home} />
           <Route path="/reports" component={Reports} />
           <Route path="/subscribe" component={Subscribe} />
         </>
+      ) : (
+        <>
+          <Route path="/reports" component={Landing} />
+          <Route path="/subscribe" component={Landing} />
+        </>
       )}
+      
       <Route component={NotFound} />
     </Switch>
   );
