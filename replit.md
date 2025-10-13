@@ -7,7 +7,7 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 Preferred communication style: Simple, everyday language.
 
 ## Recent Updates (January 2025)
-- **Authentication System**: Implemented Replit Auth (OIDC) for user login with Google, GitHub, and email/password support. Session management via PostgreSQL with automatic token refresh.
+- **Authentication System**: Implemented Replit Auth (OIDC) for user login with Google, GitHub, and email/password support. Session management via PostgreSQL with automatic token refresh. Added authentication UI in top right corner: Sign In button for unauthenticated users, user menu dropdown showing name/email with logout option for authenticated users. Fixed year dropdown to properly recognize authenticated users - historical years (2015-2024) now accessible without restrictions for logged-in users.
 - **Subscription & Payments**: Integrated Stripe payment system with flexible pricing options: $10/month Pro subscription or $250 lifetime access. Secure payment flow with status validation, customer reuse, and proper error handling for expired/canceled subscriptions. Webhook endpoint (`/api/stripe-webhook`) handles payment confirmations and requires STRIPE_WEBHOOK_SECRET for signature verification.
   - **Webhook Configuration** (REQUIRED for subscription management):
     1. In Stripe Dashboard, go to Developers > Webhooks

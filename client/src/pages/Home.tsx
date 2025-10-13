@@ -343,15 +343,15 @@ export default function Home() {
                 <SelectContent>
                   {availableYears.map(year => (
                     <SelectItem key={year} value={year}>
-                      {year}{year !== "2025" ? " (Login required)" : ""}
+                      {year}{!isAuthenticated && year !== "2025" ? " (Login required)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
-            {/* Historical data notice */}
-            {selectedYear !== "2025" && (
+            {/* Historical data notice - only for unauthenticated users */}
+            {!isAuthenticated && selectedYear !== "2025" && (
               <p className="text-xs text-amber-600 dark:text-amber-500 px-1">
                 Historical data requires sign in to view
               </p>
