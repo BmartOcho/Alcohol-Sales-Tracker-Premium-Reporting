@@ -111,6 +111,7 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", (req, res, next) => {
+    console.log('[OAuth] Callback received from:', req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
@@ -131,8 +132,18 @@ export async function setupAuth(app: Express) {
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
+  
+  console.log('[Auth] Checking authentication:', {
+    isAuthenticated: req.isAuthenticated(),
+    hasUser: !!user,
+    hasSession: !!req.session,
+    sessionID: req.sessionID,
+    userExpiresAt: user?.expires_at,
+    path: req.path,
+  });
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  if (!req.isAuthenticated() || !user?.expires_at) {
+    console.log('[Auth] Authentication failed - returning 401');
     return res.status(401).json({ message: "Unauthorized" });
   }
 
