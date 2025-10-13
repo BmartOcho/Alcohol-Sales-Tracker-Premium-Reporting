@@ -274,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/locations", async (req, res) => {
+  app.get("/api/locations", async (req: any, res) => {
     try {
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
@@ -283,7 +283,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const zip = req.query.zip as string;
       const minRevenue = req.query.minRevenue ? parseFloat(req.query.minRevenue as string) : undefined;
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 1000;
+      let limit = parseInt(req.query.limit as string) || 1000;
+      
+      // Check if user is authenticated
+      const isAuth = req.user?.claims?.sub;
+      
+      // Freemium restrictions for unauthenticated users
+      if (!isAuth) {
+        // Enforce county-only access (no statewide view)
+        if (!county) {
+          return res.status(401).json({ 
+            error: "Authentication required",
+            message: "Free users must select a county. Sign in to view all locations."
+          });
+        }
+        
+        // Enforce current year only (2025)
+        const currentYear = new Date().getFullYear().toString();
+        if (startDate && !startDate.startsWith(currentYear)) {
+          return res.status(401).json({ 
+            error: "Authentication required",
+            message: "Historical data requires sign in to view."
+          });
+        }
+        
+        // Enforce top 10 limit
+        limit = 10;
+        console.log(`[FREEMIUM] Enforcing top 10 limit for county: ${county}`);
+      }
       
       console.log(`Fetching locations from database - Date range: ${startDate || 'all'} to ${endDate || 'all'}`);
       if (county) console.log(`  Filtering by county: ${county}`);
@@ -438,8 +465,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/locations/search/by-name", async (req, res) => {
+  app.get("/api/locations/search/by-name", async (req: any, res) => {
     try {
+      // Require authentication for search functionality
+      const isAuth = req.user?.claims?.sub;
+      if (!isAuth) {
+        return res.status(401).json({ 
+          error: "Authentication required",
+          message: "Search functionality requires sign in."
+        });
+      }
+      
       const locationName = req.query.name as string;
       
       if (!locationName) {
