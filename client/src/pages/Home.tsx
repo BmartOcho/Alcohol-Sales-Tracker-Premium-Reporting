@@ -1,10 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { InteractiveMap } from "@/components/InteractiveMap";
 import { LocationDetailModal } from "@/components/LocationDetailModal";
+import { FreemiumPaywallModal } from "@/components/FreemiumPaywallModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
@@ -13,6 +15,7 @@ import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText } from "lucide
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
 import { SEO } from "@/components/SEO";
+import { recordSearch, getRemainingSearches, shouldShowPaywall, getSearchCount } from "@/lib/freemiumTracking";
 
 // County code to name mapping for display
 const COUNTY_CODE_TO_NAME: Record<string, string> = {
@@ -75,7 +78,15 @@ export default function Home() {
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [remainingSearches, setRemainingSearches] = useState(3);
   const ITEMS_PER_PAGE = 100;
+
+  // Update remaining searches on mount and when paywall status changes
+  useEffect(() => {
+    setRemainingSearches(getRemainingSearches());
+    setShowPaywall(shouldShowPaywall());
+  }, []);
 
   // Available years: 2015-2024 in database, 2025 from API (real-time)
   const availableYears = ["2025", "2024", "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015"];
@@ -271,18 +282,42 @@ export default function Home() {
               </Select>
             </div>
 
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search locations, cities, counties..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-9"
-                data-testid="input-search"
-              />
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search locations, cities, counties..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const query = e.target.value;
+                    setSearchQuery(query);
+                    setCurrentPage(1);
+                    
+                    // Track search after user types at least 3 characters
+                    if (query.trim().length >= 3) {
+                      const wasRecorded = recordSearch(query);
+                      if (wasRecorded) {
+                        const remaining = getRemainingSearches();
+                        setRemainingSearches(remaining);
+                        
+                        // Show paywall if limit reached
+                        if (shouldShowPaywall()) {
+                          setShowPaywall(true);
+                        }
+                      }
+                    }
+                  }}
+                  className="pl-9"
+                  data-testid="input-search"
+                />
+              </div>
+              
+              {/* Search counter */}
+              {remainingSearches > 0 && remainingSearches < 3 && (
+                <p className="text-xs text-muted-foreground px-1">
+                  {remainingSearches} {remainingSearches === 1 ? 'search' : 'searches'} remaining today
+                </p>
+              )}
             </div>
 
             {selectedCounty && (
@@ -351,36 +386,53 @@ export default function Home() {
 
             {!isLoading && !error && paginatedLocations.length > 0 && (
               <>
-                {paginatedLocations.map((location) => (
-                  <Card 
-                    key={location.permitNumber}
-                    className="p-2 lg:p-4 hover-elevate active-elevate-2 cursor-pointer transition-all"
-                    onClick={() => setSelectedPermitNumber(location.permitNumber)}
-                    data-testid={`card-location-${location.permitNumber}`}
-                  >
-                    <div className="space-y-2">
-                      <div>
-                        <h3 className="font-semibold truncate">{location.locationName}</h3>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {location.locationAddress}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {location.locationCity}, {location.locationCounty}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="font-mono font-bold text-lg">
-                          ${location.totalSales.toLocaleString()}
-                        </p>
-                        <div className="text-xs text-muted-foreground">
-                          <span style={{ color: "#9333ea" }}>■</span> ${(location.liquorSales / 1000).toFixed(0)}k{" "}
-                          <span style={{ color: "#dc2626" }}>■</span> ${(location.wineSales / 1000).toFixed(0)}k{" "}
-                          <span style={{ color: "#f59e0b" }}>■</span> ${(location.beerSales / 1000).toFixed(0)}k
+                {paginatedLocations.map((location, index) => {
+                  // Calculate global rank based on filteredLocations (not paginated)
+                  const globalIndex = filteredLocations.findIndex(loc => loc.permitNumber === location.permitNumber);
+                  const rank = globalIndex + 1;
+                  const isTopTen = rank <= 10;
+                  const shouldBlur = !isTopTen;
+                  
+                  return (
+                    <Card 
+                      key={location.permitNumber}
+                      className={`p-2 lg:p-4 hover-elevate active-elevate-2 cursor-pointer transition-all relative ${shouldBlur ? 'opacity-60' : ''}`}
+                      onClick={() => setSelectedPermitNumber(location.permitNumber)}
+                      data-testid={`card-location-${location.permitNumber}`}
+                    >
+                      {isTopTen && (
+                        <Badge 
+                          className="absolute -top-2 -left-2 bg-green-600 hover:bg-green-600 text-white border-green-700 z-10"
+                          data-testid={`badge-rank-${rank}`}
+                        >
+                          #{rank}
+                        </Badge>
+                      )}
+                      
+                      <div className="space-y-2">
+                        <div>
+                          <h3 className="font-semibold truncate">{location.locationName}</h3>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {location.locationAddress}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {location.locationCity}, {location.locationCounty}
+                          </p>
+                        </div>
+                        <div className={`flex items-center justify-between ${shouldBlur ? 'blur-sm' : ''}`}>
+                          <p className="font-mono font-bold text-lg">
+                            ${location.totalSales.toLocaleString()}
+                          </p>
+                          <div className="text-xs text-muted-foreground">
+                            <span style={{ color: "#9333ea" }}>■</span> ${(location.liquorSales / 1000).toFixed(0)}k{" "}
+                            <span style={{ color: "#dc2626" }}>■</span> ${(location.wineSales / 1000).toFixed(0)}k{" "}
+                            <span style={{ color: "#f59e0b" }}>■</span> ${(location.beerSales / 1000).toFixed(0)}k
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
 
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between pt-2">
@@ -439,6 +491,12 @@ export default function Home() {
         open={!!selectedPermitNumber}
         onClose={() => setSelectedPermitNumber(null)}
         selectedYear={selectedYear}
+      />
+
+      {/* Freemium Paywall Modal */}
+      <FreemiumPaywallModal
+        open={showPaywall}
+        searchesUsed={getSearchCount()}
       />
 
       {/* Map Section */}
