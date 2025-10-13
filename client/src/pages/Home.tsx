@@ -292,10 +292,11 @@ export default function Home() {
                     const query = e.target.value;
                     setSearchQuery(query);
                     setCurrentPage(1);
-                    
-                    // Track search after user types at least 3 characters
-                    if (query.trim().length >= 3) {
-                      const wasRecorded = recordSearch(query);
+                  }}
+                  onKeyDown={(e) => {
+                    // Track search only when user presses Enter (intentional search)
+                    if (e.key === 'Enter' && searchQuery.trim().length >= 3) {
+                      const wasRecorded = recordSearch(searchQuery);
                       if (wasRecorded) {
                         const remaining = getRemainingSearches();
                         setRemainingSearches(remaining);
@@ -315,7 +316,7 @@ export default function Home() {
               {/* Search counter */}
               {remainingSearches > 0 && remainingSearches < 3 && (
                 <p className="text-xs text-muted-foreground px-1">
-                  {remainingSearches} {remainingSearches === 1 ? 'search' : 'searches'} remaining today
+                  {remainingSearches} {remainingSearches === 1 ? 'search' : 'searches'} remaining today • Press Enter to search
                 </p>
               )}
             </div>

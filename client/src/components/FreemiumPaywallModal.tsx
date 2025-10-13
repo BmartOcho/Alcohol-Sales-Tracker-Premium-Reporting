@@ -22,7 +22,7 @@ export function FreemiumPaywallModal({ open, searchesUsed }: FreemiumPaywallModa
   return (
     <Dialog open={open} onOpenChange={() => {}} modal>
       <DialogContent 
-        className="max-w-md"
+        className="max-w-md [&>button]:hidden"
         data-testid="modal-freemium-paywall"
         // Prevent closing by clicking outside or pressing escape
         onInteractOutside={(e) => e.preventDefault()}
