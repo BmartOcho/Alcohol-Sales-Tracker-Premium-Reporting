@@ -4,9 +4,10 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useEffect, useState } from 'react';
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 
 // Initialize Stripe
@@ -70,11 +71,17 @@ const SubscribeForm = () => {
 type PlanType = 'monthly' | 'yearly';
 
 export default function Subscribe() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('monthly');
   const [clientSecret, setClientSecret] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
+    // Only create subscription if user is authenticated
+    if (!isAuthenticated) {
+      return;
+    }
+
     // Reset states when plan changes
     setClientSecret("");
     setError("");
@@ -103,7 +110,50 @@ export default function Subscribe() {
         console.error('[Subscribe] Error creating payment:', err);
         setError(err.message);
       });
-  }, [selectedPlan]);
+  }, [selectedPlan, isAuthenticated]);
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Checking authentication...</p>
+      </div>
+    );
+  }
+
+  // Show error if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle>Authentication Required</CardTitle>
+            <CardDescription>
+              You must be signed in to subscribe. Please sign in to continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button 
+              onClick={() => window.location.href = '/api/login'} 
+              className="w-full"
+              data-testid="button-signin-subscribe"
+            >
+              Sign In with Google/GitHub
+            </Button>
+            <Button 
+              onClick={() => window.location.href = '/'} 
+              variant="outline"
+              className="w-full"
+              data-testid="button-back-home"
+            >
+              Back to Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (error) {
     return (
