@@ -10,11 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Check, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 
-// Initialize Stripe - use test keys for development
-// Temporarily hardcoded test key since Vite doesn't expose TESTING_VITE_STRIPE_PUBLIC_KEY
-const stripePublicKey = 'pk_test_51RoRZAL860Pw52EbtkDBGgo51NUE5R47pfBlrSIru8Bz7MDpHWRsxPEGY51A75LtyI6CjowfWlM5XgZPED5RBjy800VeMdi9KL';
-const stripePromise = loadStripe(stripePublicKey);
-console.log('[Stripe] Using TEST mode keys (hardcoded for development)');
+// Initialize Stripe with production keys
+if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
+  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
+}
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+console.log('[Stripe] Using production mode keys');
 
 const SubscribeForm = ({ setupIntentId }: { setupIntentId: string }) => {
   const stripe = useStripe();
