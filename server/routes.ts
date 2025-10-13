@@ -251,17 +251,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[Stripe] Subscription created:', {
         subscriptionId: subscription.id,
         status: subscription.status,
-        hasLatestInvoice: !!subscription.latest_invoice,
-        invoiceType: typeof subscription.latest_invoice,
-        hasPaymentIntent: !!(subscription.latest_invoice as any)?.payment_intent,
-        hasClientSecret: !!(subscription.latest_invoice as any)?.payment_intent?.client_secret,
+        latestInvoiceType: typeof subscription.latest_invoice,
+        latestInvoiceId: typeof subscription.latest_invoice === 'string' ? subscription.latest_invoice : (subscription.latest_invoice as any)?.id,
       });
 
       // Update user with Stripe info (status remains 'free' until payment confirmed)
       await storage.updateUserStripeInfo(userId, customerId, subscription.id);
 
-      const clientSecret = (subscription.latest_invoice as any)?.payment_intent?.client_secret;
-      console.log('[Stripe] Returning clientSecret:', clientSecret ? 'YES' : 'NO');
+      // Get the client secret - may need to retrieve invoice if not expanded
+      let clientSecret: string | null = null;
+      
+      if (typeof subscription.latest_invoice === 'string') {
+        // Invoice wasn't expanded, retrieve it manually
+        console.log('[Stripe] Retrieving invoice manually:', subscription.latest_invoice);
+        const invoice = await stripe.invoices.retrieve(subscription.latest_invoice, {
+          expand: ['payment_intent'],
+        });
+        clientSecret = (invoice.payment_intent as any)?.client_secret || null;
+      } else if (subscription.latest_invoice) {
+        // Invoice was expanded
+        clientSecret = (subscription.latest_invoice as any)?.payment_intent?.client_secret || null;
+      }
+
+      console.log('[Stripe] Final clientSecret:', clientSecret ? 'YES' : 'NO');
 
       res.json({
         subscriptionId: subscription.id,
