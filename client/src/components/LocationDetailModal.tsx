@@ -1,7 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import type { LocationSummary, MonthlySalesRecord } from "@shared/schema";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
@@ -145,7 +143,7 @@ export function LocationDetailModal({ location, open, onClose, selectedYear }: L
           </Card>
         </div>
 
-        <div className="mb-3">
+        <div className="pb-4">
           <h3 className="text-sm font-semibold mb-3">Sales Trend (Last 12 Months)</h3>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={chartData}>
@@ -174,42 +172,6 @@ export function LocationDetailModal({ location, open, onClose, selectedYear }: L
               <Bar dataKey="beer" fill="#f59e0b" name="Beer" />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-
-        <div className="flex-1 min-h-0 pb-4">
-          <h3 className="text-sm font-semibold mb-3">Monthly Sales History</h3>
-          <ScrollArea className="h-[280px] border rounded-lg">
-            <div className="p-4 space-y-3">
-              {filteredRecords.map((record: MonthlySalesRecord, index: number) => (
-                <Card key={`${record.permitNumber}-${record.obligationEndDate}`} className="hover-elevate" data-testid={`card-monthly-record-${index}`}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{formatMonthYear(record.obligationEndDate)}</CardTitle>
-                      <Badge variant="outline" className="font-mono">
-                        {formatCurrency(record.totalReceipts)}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div>
-                        <p className="text-muted-foreground text-xs">Liquor</p>
-                        <p className="font-semibold text-[#a855f7]">{formatCurrency(record.liquorReceipts)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-xs">Wine</p>
-                        <p className="font-semibold text-[#e11d48]">{formatCurrency(record.wineReceipts)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-xs">Beer</p>
-                        <p className="font-semibold text-[#f59e0b]">{formatCurrency(record.beerReceipts)}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </ScrollArea>
         </div>
       </DialogContent>
     </Dialog>
