@@ -158,31 +158,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid plan. Must be "monthly" or "yearly"' });
       }
 
-      // If user already has a subscription, check its status
+      // If user already has a subscription, retrieve it and check status
       if (user.stripeSubscriptionId) {
+        console.log('[Stripe] User has existing subscription:', user.stripeSubscriptionId);
         const subscription = await stripe.subscriptions.retrieve(
-          user.stripeSubscriptionId,
-          { expand: ['latest_invoice.payment_intent'] }
+          user.stripeSubscriptionId
         );
+        
+        console.log('[Stripe] Existing subscription status:', subscription.status);
         
         // Check if already active
         if (subscription.status === 'active') {
           return res.status(400).json({ message: 'Already subscribed' });
         }
         
-        // If subscription is incomplete (awaiting payment), return it
-        if (subscription.status === 'incomplete') {
-          const clientSecret = (subscription.latest_invoice as any)?.payment_intent?.client_secret;
-          if (clientSecret) {
-            return res.json({
-              subscriptionId: subscription.id,
-              clientSecret,
-            });
+        // If subscription is incomplete, get the invoice and payment intent
+        if (subscription.status === 'incomplete' && subscription.latest_invoice) {
+          const invoiceId = typeof subscription.latest_invoice === 'string' 
+            ? subscription.latest_invoice 
+            : subscription.latest_invoice.id;
+          
+          const invoice = await stripe.invoices.retrieve(invoiceId);
+          
+          if (invoice.payment_intent) {
+            const paymentIntentId = typeof invoice.payment_intent === 'string'
+              ? invoice.payment_intent
+              : invoice.payment_intent.id;
+            
+            const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+            
+            if (paymentIntent.client_secret) {
+              console.log('[Stripe] Returning existing subscription clientSecret');
+              return res.json({
+                subscriptionId: subscription.id,
+                clientSecret: paymentIntent.client_secret,
+              });
+            }
           }
         }
         
         // If subscription is canceled, expired, or otherwise unusable, clear it
-        // and create a new one (fall through to creation logic)
+        console.log('[Stripe] Clearing unusable subscription');
         await storage.clearStripeSubscription(userId);
         const refreshedUser = await storage.getUser(userId);
         if (!refreshedUser) {
