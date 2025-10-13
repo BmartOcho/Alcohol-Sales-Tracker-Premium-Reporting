@@ -6,12 +6,15 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 
 // Initialize Stripe (from blueprint:javascript_stripe)
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+// Use test keys for development
+const stripeKey = process.env.TESTING_STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
+if (!stripeKey) {
+  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY or TESTING_STRIPE_SECRET_KEY');
 }
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+const stripe = new Stripe(stripeKey, {
   apiVersion: "2025-09-30.clover",
 });
+console.log('[Stripe] Using', stripeKey.startsWith('sk_test') ? 'TEST' : 'LIVE', 'mode keys');
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Stripe webhook endpoint - must come before JSON parsing middleware
