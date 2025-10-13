@@ -161,55 +161,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If user already has a subscription, retrieve it and check status
       if (user.stripeSubscriptionId) {
-        console.log('[Stripe] User has existing subscription:', user.stripeSubscriptionId);
-        const subscription = await stripe.subscriptions.retrieve(
-          user.stripeSubscriptionId
-        );
+        console.log('[Stripe] User has existing subscription ID:', user.stripeSubscriptionId);
         
-        console.log('[Stripe] Existing subscription status:', subscription.status);
-        
-        // Check if already active
-        if (subscription.status === 'active') {
-          return res.status(400).json({ message: 'Already subscribed' });
-        }
-        
-        // If subscription is incomplete, get the invoice and payment intent
-        if (subscription.status === 'incomplete' && subscription.latest_invoice) {
-          const invoiceId = typeof subscription.latest_invoice === 'string' 
-            ? subscription.latest_invoice 
-            : subscription.latest_invoice.id;
+        // Check if it's a SetupIntent ID (starts with 'seti_') vs Subscription ID (starts with 'sub_')
+        if (user.stripeSubscriptionId.startsWith('seti_')) {
+          console.log('[Stripe] Found SetupIntent ID, clearing for new attempt');
+          await storage.clearStripeSubscription(userId);
+          const refreshedUser = await storage.getUser(userId);
+          if (!refreshedUser) {
+            return res.status(404).json({ message: 'User not found after clearing' });
+          }
+          user = refreshedUser;
+        } else if (user.stripeSubscriptionId.startsWith('sub_')) {
+          // It's a real subscription, check its status
+          const subscription = await stripe.subscriptions.retrieve(
+            user.stripeSubscriptionId
+          );
           
-          const invoice = await stripe.invoices.retrieve(invoiceId, {
-            expand: ['payment_intent']
-          }) as Stripe.Response<Stripe.Invoice & { payment_intent?: Stripe.PaymentIntent | string | null }>;
+          console.log('[Stripe] Existing subscription status:', subscription.status);
           
-          const paymentIntentData = invoice.payment_intent;
+          // Check if already active
+          if (subscription.status === 'active') {
+            return res.status(400).json({ message: 'Already subscribed' });
+          }
           
-          if (paymentIntentData) {
-            const paymentIntentId = typeof paymentIntentData === 'string'
-              ? paymentIntentData
-              : paymentIntentData.id;
+          // If subscription is incomplete, get the invoice and payment intent
+          if (subscription.status === 'incomplete' && subscription.latest_invoice) {
+            const invoiceId = typeof subscription.latest_invoice === 'string' 
+              ? subscription.latest_invoice 
+              : subscription.latest_invoice.id;
             
-            const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+            const invoice = await stripe.invoices.retrieve(invoiceId, {
+              expand: ['payment_intent']
+            }) as Stripe.Response<Stripe.Invoice & { payment_intent?: Stripe.PaymentIntent | string | null }>;
             
-            if (paymentIntent.client_secret) {
-              console.log('[Stripe] Returning existing subscription clientSecret');
-              return res.json({
-                subscriptionId: subscription.id,
-                clientSecret: paymentIntent.client_secret,
-              });
+            const paymentIntentData = invoice.payment_intent;
+            
+            if (paymentIntentData) {
+              const paymentIntentId = typeof paymentIntentData === 'string'
+                ? paymentIntentData
+                : paymentIntentData.id;
+              
+              const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+              
+              if (paymentIntent.client_secret) {
+                console.log('[Stripe] Returning existing subscription clientSecret');
+                return res.json({
+                  subscriptionId: subscription.id,
+                  clientSecret: paymentIntent.client_secret,
+                });
+              }
             }
           }
+          
+          // If subscription is canceled, expired, or otherwise unusable, clear it
+          console.log('[Stripe] Clearing unusable subscription');
+          await storage.clearStripeSubscription(userId);
+          const refreshedUser = await storage.getUser(userId);
+          if (!refreshedUser) {
+            return res.status(404).json({ message: 'User not found after clearing subscription' });
+          }
+          user = refreshedUser;
         }
-        
-        // If subscription is canceled, expired, or otherwise unusable, clear it
-        console.log('[Stripe] Clearing unusable subscription');
-        await storage.clearStripeSubscription(userId);
-        const refreshedUser = await storage.getUser(userId);
-        if (!refreshedUser) {
-          return res.status(404).json({ message: 'User not found after clearing subscription' });
-        }
-        user = refreshedUser;
       }
 
       if (!user.email) {
@@ -278,8 +291,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientSecret: setupIntent.client_secret ? 'YES' : 'NO',
       });
 
-      // Store the setup intent and price info for later subscription creation
-      await storage.updateUserStripeInfo(userId, customerId, setupIntent.id);
+      // Update customer ID but DON'T store SetupIntent ID in subscription field
+      // We'll only store the actual subscription ID after payment is confirmed
+      if (!user.stripeCustomerId) {
+        await storage.updateUserStripeInfo(userId, customerId, '');
+      }
 
       res.json({
         setupIntentId: setupIntent.id,
