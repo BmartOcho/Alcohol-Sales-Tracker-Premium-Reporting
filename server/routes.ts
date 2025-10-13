@@ -77,7 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 subscriptionStatus: status,
                 subscriptionTier: status === 'active' ? 'pro' : user.subscriptionTier,
                 stripeSubscriptionId: subscription.id,
-                subscriptionEndsAt: subscription.cancel_at ? new Date(subscription.cancel_at * 1000) : null,
+                subscriptionEndsAt: subscription.cancel_at ? new Date(subscription.cancel_at * 1000) : undefined,
               });
               console.log(`User ${user.id} subscription ${event.type}: ${status}`);
             }
@@ -114,6 +114,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup Replit Auth (from blueprint:javascript_log_in_with_replit)
   await setupAuth(app);
+
+  // Debug auth route - check if session exists
+  app.get('/api/auth/debug', (req: any, res) => {
+    res.json({
+      isAuthenticated: req.isAuthenticated(),
+      hasSession: !!req.session,
+      hasUser: !!req.user,
+      sessionID: req.sessionID,
+    });
+  });
 
   // Auth route - get current user
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -174,7 +184,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // If subscription is canceled, expired, or otherwise unusable, clear it
         // and create a new one (fall through to creation logic)
         await storage.clearStripeSubscription(userId);
-        user = await storage.getUser(userId);
+        const refreshedUser = await storage.getUser(userId);
+        if (!refreshedUser) {
+          return res.status(404).json({ message: 'User not found after clearing subscription' });
+        }
+        user = refreshedUser;
       }
 
       if (!user.email) {
