@@ -94,6 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 subscriptionStatus: 'canceled',
                 subscriptionTier: 'free',
                 stripeSubscriptionId: null,
+                subscriptionEndsAt: null,
               });
               console.log(`User ${user.id} subscription canceled`);
             }
@@ -178,12 +179,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? subscription.latest_invoice 
             : subscription.latest_invoice.id;
           
-          const invoice = await stripe.invoices.retrieve(invoiceId);
+          const invoice = await stripe.invoices.retrieve(invoiceId, {
+            expand: ['payment_intent']
+          }) as Stripe.Response<Stripe.Invoice & { payment_intent?: Stripe.PaymentIntent | string | null }>;
           
-          if (invoice.payment_intent) {
-            const paymentIntentId = typeof invoice.payment_intent === 'string'
-              ? invoice.payment_intent
-              : invoice.payment_intent.id;
+          const paymentIntentData = invoice.payment_intent;
+          
+          if (paymentIntentData) {
+            const paymentIntentId = typeof paymentIntentData === 'string'
+              ? paymentIntentData
+              : paymentIntentData.id;
             
             const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
             
@@ -282,22 +287,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('[Stripe] Invoice is string ID, retrieving manually:', subscription.latest_invoice);
         const invoice = await stripe.invoices.retrieve(subscription.latest_invoice, {
           expand: ['payment_intent'],
-        });
+        }) as Stripe.Response<Stripe.Invoice & { payment_intent?: Stripe.PaymentIntent | string | null }>;
+        
+        const paymentIntentData = invoice.payment_intent;
+        
         console.log('[Stripe] Retrieved invoice:', {
           id: invoice.id,
           status: invoice.status,
-          paymentIntentType: typeof invoice.payment_intent,
-          paymentIntentId: typeof invoice.payment_intent === 'string' ? invoice.payment_intent : (invoice.payment_intent as any)?.id,
+          paymentIntentType: typeof paymentIntentData,
+          paymentIntentId: typeof paymentIntentData === 'string' ? paymentIntentData : paymentIntentData?.id,
         });
         
-        if (typeof invoice.payment_intent === 'string') {
+        if (typeof paymentIntentData === 'string') {
           // PaymentIntent is still a string ID, retrieve it too
-          console.log('[Stripe] PaymentIntent is string, retrieving:', invoice.payment_intent);
-          const paymentIntent = await stripe.paymentIntents.retrieve(invoice.payment_intent);
+          console.log('[Stripe] PaymentIntent is string, retrieving:', paymentIntentData);
+          const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentData);
           clientSecret = paymentIntent.client_secret;
           console.log('[Stripe] Retrieved PaymentIntent client_secret:', clientSecret ? 'YES' : 'NO');
-        } else if (invoice.payment_intent) {
-          clientSecret = (invoice.payment_intent as any)?.client_secret || null;
+        } else if (paymentIntentData) {
+          clientSecret = paymentIntentData.client_secret || null;
           console.log('[Stripe] PaymentIntent expanded, client_secret:', clientSecret ? 'YES' : 'NO');
         }
       } else if (subscription.latest_invoice) {
@@ -373,12 +381,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? subscription.latest_invoice 
           : subscription.latest_invoice.id;
         
-        const invoice = await stripe.invoices.retrieve(invoiceId);
+        const invoice = await stripe.invoices.retrieve(invoiceId, {
+          expand: ['payment_intent']
+        }) as Stripe.Response<Stripe.Invoice & { payment_intent?: Stripe.PaymentIntent | string | null }>;
         
-        if (invoice.payment_intent) {
-          const paymentIntentId = typeof invoice.payment_intent === 'string'
-            ? invoice.payment_intent
-            : invoice.payment_intent.id;
+        const paymentIntentData = invoice.payment_intent;
+        
+        if (paymentIntentData) {
+          const paymentIntentId = typeof paymentIntentData === 'string'
+            ? paymentIntentData
+            : paymentIntentData.id;
           
           const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
           clientSecret = paymentIntent.client_secret;
