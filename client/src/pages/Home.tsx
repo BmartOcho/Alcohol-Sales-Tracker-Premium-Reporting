@@ -11,11 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText } from "lucide-react";
+import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText, Lock } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { LocationSummary } from "@shared/schema";
 import { SEO } from "@/components/SEO";
 import { recordSearch, getRemainingSearches, shouldShowPaywall, getSearchCount } from "@/lib/freemiumTracking";
+import { useAuth } from "@/hooks/useAuth";
 
 // County code to name mapping for display
 const COUNTY_CODE_TO_NAME: Record<string, string> = {
@@ -73,6 +74,7 @@ const COUNTY_CODE_TO_NAME: Record<string, string> = {
 };
 
 export default function Home() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [selectedYear, setSelectedYear] = useState<string>("2025");
   const [selectedPermitNumber, setSelectedPermitNumber] = useState<string | null>(null);
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
@@ -119,7 +121,7 @@ export default function Home() {
   }, [selectedYear]);
 
   const { data: locations, isLoading, error } = useQuery<LocationSummary[]>({
-    queryKey: ["/api/locations", dateRange.startDate, dateRange.endDate],
+    queryKey: ["/api/locations", dateRange.startDate, dateRange.endDate, selectedCounty],
     queryFn: async () => {
       // Fetch first page to get total count
       const params = new URLSearchParams();
@@ -127,6 +129,12 @@ export default function Home() {
         params.append('startDate', dateRange.startDate);
         params.append('endDate', dateRange.endDate);
       }
+      
+      // For unauthenticated users, county is required
+      if (!isAuthenticated && selectedCounty) {
+        params.append('county', selectedCounty);
+      }
+      
       params.append('page', '1');
       params.append('limit', '1000');
       
@@ -140,6 +148,7 @@ export default function Home() {
       const allLocations: LocationSummary[] = [...firstData.locations];
       
       // If there are more pages, fetch them in parallel (batches of 5)
+      // For free users, backend enforces limit of 10 so there won't be more pages
       if (firstData.pagination.hasMore) {
         const totalPages = firstData.pagination.totalPages;
         const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
@@ -153,6 +162,9 @@ export default function Home() {
             if (dateRange.startDate && dateRange.endDate) {
               batchParams.append('startDate', dateRange.startDate);
               batchParams.append('endDate', dateRange.endDate);
+            }
+            if (!isAuthenticated && selectedCounty) {
+              batchParams.append('county', selectedCounty);
             }
             batchParams.append('page', page.toString());
             batchParams.append('limit', '1000');
@@ -175,6 +187,8 @@ export default function Home() {
       console.log(`All data loaded: ${allLocations.length} locations`);
       return allLocations;
     },
+    // For unauthenticated users, only fetch if county is selected
+    enabled: isAuthenticated || !!selectedCounty,
     retry: 2,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -185,15 +199,15 @@ export default function Home() {
     
     let filtered = locations;
 
-    // Filter by selected county (selectedCounty is now a code like "101")
-    if (selectedCounty) {
+    // Filter by selected county (only for authenticated users, free users get server-filtered)
+    if (isAuthenticated && selectedCounty) {
       filtered = filtered.filter(
         (loc) => loc.locationCounty === selectedCounty
       );
     }
 
-    // Filter by search query
-    if (searchQuery.trim()) {
+    // Filter by search query (only for authenticated users)
+    if (isAuthenticated && searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (loc) =>
@@ -206,7 +220,7 @@ export default function Home() {
 
     // Sort by total sales (highest first) - clone to avoid mutating cache
     return [...filtered].sort((a, b) => b.totalSales - a.totalSales);
-  }, [locations, searchQuery, selectedCounty]);
+  }, [locations, searchQuery, selectedCounty, isAuthenticated]);
 
   // Paginate filtered locations
   const paginatedLocations = useMemo(() => {
@@ -294,40 +308,34 @@ export default function Home() {
 
             <div className="space-y-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                {!isAuthenticated && <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
+                {isAuthenticated && <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
                 <Input
-                  placeholder="Search locations, cities, counties..."
+                  placeholder={isAuthenticated ? "Search locations, cities, counties..." : "Sign in to search"}
                   value={searchQuery}
                   onChange={(e) => {
-                    const query = e.target.value;
-                    setSearchQuery(query);
-                    setCurrentPage(1);
-                  }}
-                  onKeyDown={(e) => {
-                    // Track search only when user presses Enter (intentional search)
-                    if (e.key === 'Enter' && searchQuery.trim().length >= 3) {
-                      const wasRecorded = recordSearch(searchQuery);
-                      if (wasRecorded) {
-                        const remaining = getRemainingSearches();
-                        setRemainingSearches(remaining);
-                        
-                        // Show paywall if limit reached
-                        if (shouldShowPaywall()) {
-                          setPaywallReason('search_limit');
-                          setShowPaywall(true);
-                        }
-                      }
+                    if (isAuthenticated) {
+                      const query = e.target.value;
+                      setSearchQuery(query);
+                      setCurrentPage(1);
                     }
                   }}
+                  onFocus={() => {
+                    if (!isAuthenticated) {
+                      setPaywallReason('data_access');
+                      setShowPaywall(true);
+                    }
+                  }}
+                  disabled={!isAuthenticated}
                   className="pl-9"
                   data-testid="input-search"
                 />
               </div>
               
-              {/* Search counter */}
-              {remainingSearches > 0 && remainingSearches < 3 && (
+              {/* Search message for unauthenticated users */}
+              {!isAuthenticated && (
                 <p className="text-xs text-muted-foreground px-1">
-                  {remainingSearches} {remainingSearches === 1 ? 'search' : 'searches'} remaining today • Press Enter to search
+                  Select a county above to view top 10 locations
                 </p>
               )}
             </div>
@@ -394,6 +402,37 @@ export default function Home() {
                   <Skeleton key={i} className="h-24 w-full" />
                 ))}
               </div>
+            )}
+
+            {/* Empty state for unauthenticated users without county selection */}
+            {!isAuthenticated && !selectedCounty && !isLoading && !error && (
+              <Card className="p-8 text-center">
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    <MapPin className="h-16 w-16 text-muted-foreground opacity-50" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Select a County to Get Started</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Choose a county from the dropdown above to view the top 10 alcohol sales locations in that area.
+                    </p>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    <p>Want to view all locations and search?</p>
+                    <Button 
+                      variant="link" 
+                      className="p-0 h-auto font-semibold"
+                      onClick={() => {
+                        setPaywallReason('data_access');
+                        setShowPaywall(true);
+                      }}
+                      data-testid="button-signin-empty-state"
+                    >
+                      Sign in to unlock full access
+                    </Button>
+                  </div>
+                </div>
+              </Card>
             )}
 
             {!isLoading && !error && paginatedLocations.length > 0 && (
