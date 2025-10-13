@@ -298,12 +298,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        // Enforce current year only (2025)
+        // Enforce current year only (2025) - require BOTH startDate and endDate
         const currentYear = new Date().getFullYear().toString();
-        if (startDate && !startDate.startsWith(currentYear)) {
+        if (!startDate || !endDate) {
+          return res.status(401).json({ 
+            error: "Authentication required",
+            message: "Date range required for free users."
+          });
+        }
+        if (!startDate.startsWith(currentYear) || !endDate.startsWith(currentYear)) {
           return res.status(401).json({ 
             error: "Authentication required",
             message: "Historical data requires sign in to view."
+          });
+        }
+        
+        // Enforce page 1 only (prevent pagination bypass - including negative pages)
+        if (page !== 1) {
+          return res.status(401).json({ 
+            error: "Authentication required",
+            message: "Only page 1 is available for free users. Sign in to view more."
           });
         }
         

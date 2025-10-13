@@ -26,12 +26,14 @@ Preferred communication style: Simple, everyday language.
 - **Mobile Responsive Optimization (Oct 2025)**: Comprehensive mobile responsiveness across all pages using Tailwind breakpoints. Home page uses vertical stack layout on mobile (sidebar above map, 65/35 height split favoring location list) and side-by-side on desktop. Reports page features mobile-optimized tabs and navigation. Landing and Subscribe pages have responsive text sizes and spacing. All touch targets meet ≥32px requirement for mobile usability. Tested and verified across mobile (375x667), tablet (768x1024), and desktop (1920x1080) viewports.
 - **Reports Page Mobile Enhancement (Jan 2025)**: Enhanced mobile responsiveness for all three Reports tabs (Permit Report, Permit Comparison, Outliers). Permit Report: metric cards stack vertically on mobile (grid-cols-1 md:grid-cols-2 lg:grid-cols-5), search controls stack responsively, download button shows "PDF" on mobile. Permit Comparison: separate mobile/desktop charts with optimized heights (300px/400px) and condensed axes. Outliers: filters grid responsive, header badges wrap, outlier cards stack properly with truncated text. All layouts verified at 375px width with no horizontal scrolling.
 - **Location Modal Cleanup (Jan 2025)**: Removed redundant monthly sales scrolling list from location detail modals. Sales data is now displayed exclusively via the Sales Trend chart, eliminating duplication and creating a cleaner, more compact modal interface.
-- **Freemium Paywall (Jan 2025)**: Implemented comprehensive freemium model for unauthenticated users. Home page is publicly accessible without login. Features include:
-  - **Search Limits**: 3 free manual searches per day, localStorage-based tracking with daily midnight reset. Search counting only on Enter key press (not keystroke). Clear UI hint "Press Enter to search" shows remaining searches.
-  - **Top 10 Rankings**: Green numbered badges (#1-#10) appear ONLY when viewing all Texas locations or county-filtered results. Badges hidden during text searches to prevent gaming the system.
-  - **Data Restrictions**: Locations ranked 11+ have complete blur effect (name, address, sales). Blur removed during searches to allow discovery. Clicking blurred locations triggers "Premium Data Access" paywall.
-  - **Historical Data**: Years 2015-2024 require authentication. Year dropdown shows "(Login required)" indicator with warning message. All locations trigger paywall when historical year selected.
-  - **Flexible Paywall Modal**: Non-dismissible modal with contextual messaging - "Search Limit Reached" for search quota exhaustion, "Premium Data Access" for data/historical restrictions. Includes Sign In/Sign Up options.
+- **Freemium Paywall (Jan 2025)**: Implemented highly restrictive freemium model where unauthenticated users can ONLY view top 10 locations from a selected county. Home page is publicly accessible without login. Features include:
+  - **County-Only Access**: Free users MUST select a county to view any data. No statewide viewing allowed. Empty state shown until county selected.
+  - **Top 10 Per County**: When county selected, displays ONLY top 10 highest-grossing locations with green numbered badges (#1-#10).
+  - **Search Disabled**: Search functionality completely disabled for free users. Input shows "Sign in to search" with lock icon. Clicking triggers paywall.
+  - **Current Year Only**: Only 2025 data visible. Years 2015-2024 show "(Login required)" indicator. Selecting historical year triggers paywall.
+  - **Backend Enforcement**: API enforces county parameter requirement, page 1 only (no pagination bypass), top 10 limit, and current year validation for unauthenticated requests.
+  - **Security**: Multiple bypass protections including page validation (rejects page !== 1), date range requirements, and frontend pagination guards.
+  - **Paywall Modal**: Non-dismissible modal with contextual messaging for data access restrictions. Includes Sign In/Sign Up options.
 
 ## System Architecture
 

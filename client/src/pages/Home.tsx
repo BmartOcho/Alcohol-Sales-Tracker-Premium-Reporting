@@ -148,8 +148,8 @@ export default function Home() {
       const allLocations: LocationSummary[] = [...firstData.locations];
       
       // If there are more pages, fetch them in parallel (batches of 5)
-      // For free users, backend enforces limit of 10 so there won't be more pages
-      if (firstData.pagination.hasMore) {
+      // ONLY for authenticated users - free users are restricted to page 1 only
+      if (isAuthenticated && firstData.pagination.hasMore) {
         const totalPages = firstData.pagination.totalPages;
         const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
         
