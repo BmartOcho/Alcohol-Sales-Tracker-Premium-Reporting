@@ -67,7 +67,7 @@ const SubscribeForm = () => {
   );
 };
 
-type PlanType = 'monthly' | 'lifetime';
+type PlanType = 'monthly' | 'yearly';
 
 export default function Subscribe() {
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('monthly');
@@ -75,9 +75,9 @@ export default function Subscribe() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Create payment intent when plan is selected
-    const endpoint = selectedPlan === 'monthly' ? '/api/create-subscription' : '/api/create-payment-intent';
-    const payload = selectedPlan === 'lifetime' ? { amount: 250 } : {};
+    // Create subscription for both monthly and yearly plans
+    const endpoint = '/api/create-subscription';
+    const payload = { plan: selectedPlan };
 
     apiRequest("POST", endpoint, payload)
       .then((res) => {
@@ -127,7 +127,7 @@ export default function Subscribe() {
     <div className="min-h-screen bg-background p-3 lg:p-4">
       <SEO
         title="Subscribe - Texas Alcohol Sales Map Pro"
-        description="Upgrade to Pro starting at $10/month or $250 lifetime. Get unlimited access to interactive maps, detailed analytics, location reports, and county insights for Texas alcohol sales data."
+        description="Upgrade to Pro starting at $10/month or $100/year. Get unlimited access to interactive maps, detailed analytics, location reports, and county insights for Texas alcohol sales data."
         type="website"
       />
       <div className="max-w-4xl mx-auto py-4 lg:py-8 space-y-6 lg:space-y-8">
@@ -163,23 +163,23 @@ export default function Subscribe() {
           </Card>
 
           <Card 
-            className={`cursor-pointer transition-all ${selectedPlan === 'lifetime' ? 'ring-2 ring-primary' : 'hover-elevate'}`}
-            onClick={() => setSelectedPlan('lifetime')}
-            data-testid="card-lifetime-plan"
+            className={`cursor-pointer transition-all ${selectedPlan === 'yearly' ? 'ring-2 ring-primary' : 'hover-elevate'}`}
+            onClick={() => setSelectedPlan('yearly')}
+            data-testid="card-yearly-plan"
           >
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                Lifetime Access
-                {selectedPlan === 'lifetime' && <Check className="h-5 w-5 text-primary" />}
+                Yearly Plan
+                {selectedPlan === 'yearly' && <Check className="h-5 w-5 text-primary" />}
               </CardTitle>
               <CardDescription>
-                <span className="text-3xl font-bold text-foreground">$250</span>
-                <span className="text-muted-foreground"> one-time</span>
+                <span className="text-3xl font-bold text-foreground">$100</span>
+                <span className="text-muted-foreground">/year</span>
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Pay once, access forever. Best value!
+                Save 17% with annual billing. Best value!
               </p>
             </CardContent>
           </Card>
@@ -243,8 +243,8 @@ export default function Subscribe() {
                   </>
                 ) : (
                   <>
-                    <span className="text-2xl font-bold text-foreground">$250</span>
-                    <span className="text-muted-foreground"> one-time</span>
+                    <span className="text-2xl font-bold text-foreground">$100</span>
+                    <span className="text-muted-foreground"> /year</span>
                   </>
                 )}
               </CardDescription>

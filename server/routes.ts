@@ -142,6 +142,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'User not found' });
       }
 
+      // Get selected plan from request body (monthly or yearly)
+      const { plan } = req.body;
+      if (!plan || (plan !== 'monthly' && plan !== 'yearly')) {
+        return res.status(400).json({ message: 'Invalid plan. Must be "monthly" or "yearly"' });
+      }
+
       // If user already has a subscription, check its status
       if (user.stripeSubscriptionId) {
         const subscription = await stripe.subscriptions.retrieve(
@@ -197,16 +203,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Search for existing price for this product
+      // Determine pricing based on selected plan
+      const priceConfig = plan === 'monthly' 
+        ? { amount: 1000, interval: 'month' as const }  // $10/month
+        : { amount: 10000, interval: 'year' as const }; // $100/year
+
+      // Search for existing price for this product and plan
       const prices = await stripe.prices.list({ product: product.id, limit: 100 });
-      let price = prices.data.find(p => p.unit_amount === 1000 && p.currency === 'usd' && p.recurring?.interval === 'month');
+      let price = prices.data.find(p => 
+        p.unit_amount === priceConfig.amount && 
+        p.currency === 'usd' && 
+        p.recurring?.interval === priceConfig.interval
+      );
       
       if (!price) {
         price = await stripe.prices.create({
           product: product.id,
-          unit_amount: 1000, // $10.00 in cents
+          unit_amount: priceConfig.amount,
           currency: 'usd',
-          recurring: { interval: 'month' },
+          recurring: { interval: priceConfig.interval },
         });
       }
 
