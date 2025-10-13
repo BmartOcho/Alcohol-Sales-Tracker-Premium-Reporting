@@ -263,17 +263,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (typeof subscription.latest_invoice === 'string') {
         // Invoice wasn't expanded, retrieve it manually
-        console.log('[Stripe] Retrieving invoice manually:', subscription.latest_invoice);
+        console.log('[Stripe] Invoice is string ID, retrieving manually:', subscription.latest_invoice);
         const invoice = await stripe.invoices.retrieve(subscription.latest_invoice, {
           expand: ['payment_intent'],
         });
-        clientSecret = (invoice.payment_intent as any)?.client_secret || null;
+        console.log('[Stripe] Retrieved invoice:', {
+          id: invoice.id,
+          status: invoice.status,
+          paymentIntentType: typeof invoice.payment_intent,
+          paymentIntentId: typeof invoice.payment_intent === 'string' ? invoice.payment_intent : (invoice.payment_intent as any)?.id,
+        });
+        
+        if (typeof invoice.payment_intent === 'string') {
+          // PaymentIntent is still a string ID, retrieve it too
+          console.log('[Stripe] PaymentIntent is string, retrieving:', invoice.payment_intent);
+          const paymentIntent = await stripe.paymentIntents.retrieve(invoice.payment_intent);
+          clientSecret = paymentIntent.client_secret;
+          console.log('[Stripe] Retrieved PaymentIntent client_secret:', clientSecret ? 'YES' : 'NO');
+        } else if (invoice.payment_intent) {
+          clientSecret = (invoice.payment_intent as any)?.client_secret || null;
+          console.log('[Stripe] PaymentIntent expanded, client_secret:', clientSecret ? 'YES' : 'NO');
+        }
       } else if (subscription.latest_invoice) {
         // Invoice was expanded
-        clientSecret = (subscription.latest_invoice as any)?.payment_intent?.client_secret || null;
+        console.log('[Stripe] Invoice was expanded, checking payment_intent...');
+        const paymentIntent = (subscription.latest_invoice as any)?.payment_intent;
+        if (typeof paymentIntent === 'string') {
+          console.log('[Stripe] PaymentIntent is string, retrieving:', paymentIntent);
+          const pi = await stripe.paymentIntents.retrieve(paymentIntent);
+          clientSecret = pi.client_secret;
+        } else if (paymentIntent) {
+          clientSecret = paymentIntent.client_secret || null;
+        }
+        console.log('[Stripe] Final client_secret:', clientSecret ? 'YES' : 'NO');
       }
 
-      console.log('[Stripe] Final clientSecret:', clientSecret ? 'YES' : 'NO');
+      if (!clientSecret) {
+        console.error('[Stripe] ERROR: No client_secret found! Subscription:', JSON.stringify(subscription, null, 2));
+      }
 
       res.json({
         subscriptionId: subscription.id,
