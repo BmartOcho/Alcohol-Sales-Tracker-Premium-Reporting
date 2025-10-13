@@ -11,8 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText, Lock } from "lucide-react";
+import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText, Lock, User, LogOut } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { LocationSummary } from "@shared/schema";
 import { SEO } from "@/components/SEO";
 import { recordSearch, getRemainingSearches, shouldShowPaywall, getSearchCount } from "@/lib/freemiumTracking";
@@ -74,7 +75,7 @@ const COUNTY_CODE_TO_NAME: Record<string, string> = {
 };
 
 export default function Home() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [selectedYear, setSelectedYear] = useState<string>("2025");
   const [selectedPermitNumber, setSelectedPermitNumber] = useState<string | null>(null);
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
@@ -267,15 +268,65 @@ export default function Home() {
                   <FileText className="h-4 w-4" />
                 </Button>
               </Link>
-              <Link href="/subscribe">
-                <Button variant="default" size="sm" data-testid="button-subscribe" className="hidden sm:flex">
-                  Upgrade
-                </Button>
-                <Button variant="default" size="icon" data-testid="button-subscribe-mobile" className="sm:hidden h-8 w-8">
-                  <Star className="h-4 w-4" />
-                </Button>
-              </Link>
+              {!isAuthenticated && (
+                <Link href="/subscribe">
+                  <Button variant="default" size="sm" data-testid="button-subscribe" className="hidden sm:flex">
+                    Upgrade
+                  </Button>
+                  <Button variant="default" size="icon" data-testid="button-subscribe-mobile" className="sm:hidden h-8 w-8">
+                    <Star className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
               <ThemeToggle />
+              
+              {/* Auth Menu */}
+              {isAuthenticated ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" data-testid="button-user-menu">
+                      <User className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline">
+                        {(user as any)?.firstName || (user as any)?.email || 'Account'}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none" data-testid="text-user-name">
+                          {(user as any)?.firstName && (user as any)?.lastName 
+                            ? `${(user as any).firstName} ${(user as any).lastName}`
+                            : (user as any)?.email}
+                        </p>
+                        {(user as any)?.email && (user as any)?.firstName && (
+                          <p className="text-xs leading-none text-muted-foreground" data-testid="text-user-email">
+                            {(user as any).email}
+                          </p>
+                        )}
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => window.location.href = '/api/logout'}
+                      data-testid="button-logout"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <a href="/api/auth/login">
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    data-testid="button-signin"
+                  >
+                    Sign In
+                  </Button>
+                </a>
+              )}
             </div>
           </div>
           
