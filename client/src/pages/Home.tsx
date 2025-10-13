@@ -322,12 +322,10 @@ export default function Home() {
               <Button 
                 variant="default" 
                 size="sm"
-                asChild
+                onClick={() => window.location.href = '/api/login'}
                 data-testid="button-signin"
               >
-                <a href="/api/auth/login">
-                  Sign In
-                </a>
+                Sign In
               </Button>
             )}
           </div>
