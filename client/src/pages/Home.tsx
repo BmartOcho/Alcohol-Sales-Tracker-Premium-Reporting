@@ -252,82 +252,84 @@ export default function Home() {
       />
       {/* Sidebar */}
       <div className="w-full lg:w-96 border-r bg-card flex flex-col h-[65vh] lg:h-full">
-        <div className="p-3 lg:p-4 border-b space-y-3 lg:space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Star className="h-5 w-5 lg:h-6 lg:w-6 text-primary flex-shrink-0" />
-              <h1 className="text-lg lg:text-xl font-bold truncate">Texas Alcohol Sales</h1>
-            </div>
-            <div className="flex items-center gap-1 lg:gap-2 flex-shrink-0">
-              <Link href="/reports">
-                <Button variant="outline" size="sm" data-testid="button-reports" className="hidden sm:flex">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Reports
+        <div className="p-3 lg:p-4 border-b space-y-3">
+          {/* Title */}
+          <div className="flex items-center gap-2">
+            <Star className="h-5 w-5 lg:h-6 lg:w-6 text-primary flex-shrink-0" />
+            <h1 className="text-lg lg:text-xl font-bold">Texas Alcohol Sales</h1>
+          </div>
+          
+          {/* Buttons Row */}
+          <div className="flex items-center justify-end gap-1 lg:gap-2">
+            <Link href="/reports">
+              <Button variant="outline" size="sm" data-testid="button-reports" className="hidden sm:flex">
+                <FileText className="h-4 w-4 mr-2" />
+                Reports
+              </Button>
+              <Button variant="outline" size="icon" data-testid="button-reports-mobile" className="sm:hidden h-8 w-8">
+                <FileText className="h-4 w-4" />
+              </Button>
+            </Link>
+            {!isAuthenticated && (
+              <Link href="/subscribe">
+                <Button variant="default" size="sm" data-testid="button-subscribe" className="hidden sm:flex">
+                  Upgrade
                 </Button>
-                <Button variant="outline" size="icon" data-testid="button-reports-mobile" className="sm:hidden h-8 w-8">
-                  <FileText className="h-4 w-4" />
+                <Button variant="default" size="icon" data-testid="button-subscribe-mobile" className="sm:hidden h-8 w-8">
+                  <Star className="h-4 w-4" />
                 </Button>
               </Link>
-              {!isAuthenticated && (
-                <Link href="/subscribe">
-                  <Button variant="default" size="sm" data-testid="button-subscribe" className="hidden sm:flex">
-                    Upgrade
+            )}
+            <ThemeToggle />
+            
+            {/* Auth Menu */}
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" data-testid="button-user-menu">
+                    <User className="h-4 w-4 mr-2" />
+                    <span className="hidden sm:inline">
+                      {(user as any)?.firstName || (user as any)?.email || 'Account'}
+                    </span>
                   </Button>
-                  <Button variant="default" size="icon" data-testid="button-subscribe-mobile" className="sm:hidden h-8 w-8">
-                    <Star className="h-4 w-4" />
-                  </Button>
-                </Link>
-              )}
-              <ThemeToggle />
-              
-              {/* Auth Menu */}
-              {isAuthenticated ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" data-testid="button-user-menu">
-                      <User className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">
-                        {(user as any)?.firstName || (user as any)?.email || 'Account'}
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none" data-testid="text-user-name">
-                          {(user as any)?.firstName && (user as any)?.lastName 
-                            ? `${(user as any).firstName} ${(user as any).lastName}`
-                            : (user as any)?.email}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none" data-testid="text-user-name">
+                        {(user as any)?.firstName && (user as any)?.lastName 
+                          ? `${(user as any).firstName} ${(user as any).lastName}`
+                          : (user as any)?.email}
+                      </p>
+                      {(user as any)?.email && (user as any)?.firstName && (
+                        <p className="text-xs leading-none text-muted-foreground" data-testid="text-user-email">
+                          {(user as any).email}
                         </p>
-                        {(user as any)?.email && (user as any)?.firstName && (
-                          <p className="text-xs leading-none text-muted-foreground" data-testid="text-user-email">
-                            {(user as any).email}
-                          </p>
-                        )}
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={() => window.location.href = '/api/logout'}
-                      data-testid="button-logout"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Log out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <a href="/api/auth/login">
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    data-testid="button-signin"
+                      )}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => window.location.href = '/api/logout'}
+                    data-testid="button-logout"
                   >
-                    Sign In
-                  </Button>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button 
+                variant="default" 
+                size="sm"
+                asChild
+                data-testid="button-signin"
+              >
+                <a href="/api/auth/login">
+                  Sign In
                 </a>
-              )}
-            </div>
+              </Button>
+            )}
           </div>
           
           <div className="space-y-2">
