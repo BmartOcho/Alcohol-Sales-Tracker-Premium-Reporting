@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText, Lock, User, LogOut } from "lucide-react";
+import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText, Lock, User, LogOut, CreditCard, Crown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { LocationSummary } from "@shared/schema";
@@ -298,9 +298,35 @@ export default function Home() {
                           {(user as any).email}
                         </p>
                       )}
+                      {/* Subscription Tier Badge */}
+                      <div className="pt-2">
+                        {(user as any)?.subscriptionTier === 'pro' || (user as any)?.subscriptionTier === 'lifetime' ? (
+                          <Badge variant="default" className="text-xs" data-testid="badge-subscription-tier">
+                            <Crown className="h-3 w-3 mr-1" />
+                            {(user as any)?.subscriptionTier === 'lifetime' ? 'Lifetime Pro' : 'Pro Member'}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs" data-testid="badge-subscription-tier">
+                            Free Tier
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  {/* Show upgrade option for free users */}
+                  {(user as any)?.subscriptionTier !== 'pro' && (user as any)?.subscriptionTier !== 'lifetime' && (
+                    <>
+                      <DropdownMenuItem 
+                        onClick={() => window.location.href = '/subscribe'}
+                        data-testid="button-upgrade"
+                      >
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Upgrade to Pro
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem 
                     onClick={() => window.location.href = '/api/logout'}
                     data-testid="button-logout"
