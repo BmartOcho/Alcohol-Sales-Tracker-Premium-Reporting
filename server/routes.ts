@@ -76,7 +76,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               await storage.updateSubscriptionStatus(user.id, {
                 subscriptionStatus: status,
-                subscriptionTier: status === 'active' ? 'pro' : user.subscriptionTier,
+                subscriptionTier: status === 'active' ? 'pro' : (user.subscriptionTier || 'free'),
                 stripeSubscriptionId: subscription.id as string,
                 subscriptionEndsAt: subscription.cancel_at ? new Date(subscription.cancel_at * 1000) : null,
               });
@@ -503,6 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const county = req.query.county as string;
       const city = req.query.city as string;
       const zip = req.query.zip as string;
+      const search = req.query.search as string;
       const minRevenue = req.query.minRevenue ? parseFloat(req.query.minRevenue as string) : undefined;
       const page = parseInt(req.query.page as string) || 1;
       let limit = parseInt(req.query.limit as string) || 1000;
@@ -552,6 +553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (county) console.log(`  Filtering by county: ${county}`);
       if (city) console.log(`  Filtering by city: ${city}`);
       if (zip) console.log(`  Filtering by zip: ${zip}`);
+      if (search) console.log(`  Filtering by search query: ${search}`);
       if (minRevenue) console.log(`  Filtering by min revenue: $${minRevenue}`);
       
       // Query database directly (much faster than API)
@@ -566,6 +568,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (zip) {
         locations = locations.filter(loc => loc.locationZip === zip);
+      }
+      
+      // Apply search filter (searches across name, address, city, county)
+      if (search && search.trim()) {
+        const searchLower = search.toLowerCase().trim();
+        locations = locations.filter(loc => 
+          loc.locationName.toLowerCase().includes(searchLower) ||
+          loc.locationAddress.toLowerCase().includes(searchLower) ||
+          loc.locationCity.toLowerCase().includes(searchLower) ||
+          loc.locationCounty.toLowerCase().includes(searchLower)
+        );
       }
       
       // Filter out ceased operations (locations with zero sales)

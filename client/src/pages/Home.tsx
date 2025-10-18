@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { InteractiveMap } from "@/components/InteractiveMap";
@@ -80,11 +80,21 @@ export default function Home() {
   const [selectedPermitNumber, setSelectedPermitNumber] = useState<string | null>(null);
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallReason, setPaywallReason] = useState<'search_limit' | 'data_access'>('search_limit');
   const [remainingSearches, setRemainingSearches] = useState(3);
   const ITEMS_PER_PAGE = 100;
+
+  // Debounce search query (300ms delay)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Update remaining searches on mount and when paywall status changes
   useEffect(() => {
@@ -122,7 +132,7 @@ export default function Home() {
   }, [selectedYear]);
 
   const { data: locations, isLoading, error } = useQuery<LocationSummary[]>({
-    queryKey: ["/api/locations", dateRange.startDate, dateRange.endDate, selectedCounty],
+    queryKey: ["/api/locations", dateRange.startDate, dateRange.endDate, selectedCounty, debouncedSearch],
     queryFn: async () => {
       // Fetch first page to get total count
       const params = new URLSearchParams();
@@ -131,8 +141,13 @@ export default function Home() {
         params.append('endDate', dateRange.endDate);
       }
       
-      // For unauthenticated users, county is required
-      if (!isAuthenticated && selectedCounty) {
+      // Add search parameter if present
+      if (debouncedSearch.trim()) {
+        params.append('search', debouncedSearch.trim());
+      }
+      
+      // Add county filter for both authenticated and unauthenticated users
+      if (selectedCounty) {
         params.append('county', selectedCounty);
       }
       
@@ -164,7 +179,10 @@ export default function Home() {
               batchParams.append('startDate', dateRange.startDate);
               batchParams.append('endDate', dateRange.endDate);
             }
-            if (!isAuthenticated && selectedCounty) {
+            if (debouncedSearch.trim()) {
+              batchParams.append('search', debouncedSearch.trim());
+            }
+            if (selectedCounty) {
               batchParams.append('county', selectedCounty);
             }
             batchParams.append('page', page.toString());
@@ -194,34 +212,14 @@ export default function Home() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Filter locations based on search and county selection
+  // Sort locations (server handles all filtering: county, search, etc.)
   const filteredLocations = useMemo(() => {
     if (!locations) return [];
     
-    let filtered = locations;
-
-    // Filter by selected county (only for authenticated users, free users get server-filtered)
-    if (isAuthenticated && selectedCounty) {
-      filtered = filtered.filter(
-        (loc) => loc.locationCounty === selectedCounty
-      );
-    }
-
-    // Filter by search query (only for authenticated users)
-    if (isAuthenticated && searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (loc) =>
-          loc.locationName.toLowerCase().includes(query) ||
-          loc.locationCity.toLowerCase().includes(query) ||
-          loc.locationCounty.toLowerCase().includes(query) ||
-          loc.locationAddress.toLowerCase().includes(query)
-      );
-    }
-
-    // Sort by total sales (highest first) - clone to avoid mutating cache
-    return [...filtered].sort((a, b) => b.totalSales - a.totalSales);
-  }, [locations, searchQuery, selectedCounty, isAuthenticated]);
+    // Server already filters by county AND search query, so just sort
+    // Clone to avoid mutating cache
+    return [...locations].sort((a, b) => b.totalSales - a.totalSales);
+  }, [locations]);
 
   // Paginate filtered locations
   const paginatedLocations = useMemo(() => {
@@ -232,19 +230,19 @@ export default function Home() {
 
   const totalPages = Math.ceil(filteredLocations.length / ITEMS_PER_PAGE);
 
-  // Map display locations - only top 10 when county selected, top 100 when no filter
+  // Map display locations - enforce clean limits
   const mapLocations = useMemo(() => {
     if (selectedCounty) {
-      // Show top 10 for selected county
+      // When county selected, ALWAYS show top 10 (with or without search)
       return filteredLocations.slice(0, 10);
-    } else if (searchQuery.trim()) {
-      // Show all search results (they're already filtered)
+    } else if (debouncedSearch.trim()) {
+      // Statewide search: show all results (already server-filtered)
       return filteredLocations;
     } else {
-      // Show top 100 statewide as default
+      // Default statewide view: top 100
       return filteredLocations.slice(0, 100);
     }
-  }, [filteredLocations, selectedCounty, searchQuery]);
+  }, [filteredLocations, selectedCounty, debouncedSearch]);
 
   const totalSales = useMemo(() => {
     if (!filteredLocations) return 0;
@@ -697,7 +695,7 @@ export default function Home() {
                 setCurrentPage(1);
               }}
               selectedCounty={selectedCounty}
-              showRankings={!!selectedCounty}
+              showRankings={!!selectedCounty && !debouncedSearch.trim()}
             />
           )}
         </div>
