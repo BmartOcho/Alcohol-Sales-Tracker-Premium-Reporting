@@ -64,6 +64,7 @@ type InteractiveMapProps = {
   onLocationClick?: (location: LocationSummary) => void;
   onCountyClick?: (countyName: string) => void;
   selectedCounty?: string | null;
+  showRankings?: boolean;
   center?: [number, number];
   zoom?: number;
 };
@@ -74,6 +75,7 @@ export function InteractiveMap({
   onLocationClick,
   onCountyClick,
   selectedCounty,
+  showRankings = false,
   center = [31.9686, -99.9018],
   zoom = 6,
 }: InteractiveMapProps) {
@@ -222,6 +224,32 @@ export function InteractiveMap({
     }).addTo(mapRef.current);
   }, [geoJsonData, locations, allLocations, onCountyClick, selectedCounty]);
 
+  // Auto-zoom to selected county
+  useEffect(() => {
+    if (!mapRef.current || !geoJsonData || !selectedCounty) return;
+
+    // Find the county feature
+    const countyFeature = geoJsonData.features.find((feature: any) => {
+      const rawCountyName = feature.properties.CNTY_NM || feature.properties.NAME || "";
+      const countyNameUpper = rawCountyName.toUpperCase();
+      const countyCode = COUNTY_NAME_TO_CODE[countyNameUpper];
+      return countyCode === selectedCounty;
+    });
+
+    if (countyFeature && mapRef.current) {
+      // Create a temporary layer to get bounds
+      const tempLayer = L.geoJSON(countyFeature);
+      const bounds = tempLayer.getBounds();
+      
+      // Fly to county bounds with smooth animation
+      mapRef.current.flyToBounds(bounds, {
+        padding: [50, 50],
+        duration: 1.2,
+        maxZoom: 10,
+      });
+    }
+  }, [selectedCounty, geoJsonData]);
+
   // Render location markers
   useEffect(() => {
     if (!mapRef.current || !markersLayerRef.current || !locations) return;
@@ -245,44 +273,124 @@ export function InteractiveMap({
     };
 
     // Add markers for each location
-    locations.forEach((location) => {
-      const marker = L.circleMarker([location.lat, location.lng], {
-        radius: 6,
-        fillColor: getMarkerColor(location),
-        color: "#fff",
-        weight: 1,
-        opacity: 1,
-        fillOpacity: 0.8,
-      });
+    locations.forEach((location, index) => {
+      const rank = index + 1;
+      const color = getMarkerColor(location);
 
-      // Add popup
-      marker.bindPopup(
-        `<div style="font-family: Inter, sans-serif; min-width: 200px;">
-          <strong style="font-size: 14px;">${location.locationName}</strong><br/>
-          <span style="font-size: 12px; color: #6b7280;">${location.locationAddress}</span><br/>
-          <span style="font-size: 12px; color: #6b7280;">${location.locationCity}, ${location.locationCounty}</span><br/>
-          <span style="font-size: 13px; font-weight: 600; margin-top: 4px; display: block;">
-            Total: $${location.totalSales.toLocaleString()}
-          </span>
-          <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
-            <span style="color: #9333ea;">■</span> Liquor: $${location.liquorSales.toLocaleString()}<br/>
-            <span style="color: #dc2626;">■</span> Wine: $${location.wineSales.toLocaleString()}<br/>
-            <span style="color: #f59e0b;">■</span> Beer: $${location.beerSales.toLocaleString()}
-          </div>
-        </div>`,
-        { closeButton: true }
-      );
-
-      // Add click handler
-      if (onLocationClick) {
-        marker.on("click", () => {
-          onLocationClick(location);
+      // Use numbered DivIcon for top 10 when rankings shown
+      if (showRankings && rank <= 10) {
+        const icon = L.divIcon({
+          className: 'custom-marker-icon',
+          html: `
+            <div style="
+              position: relative;
+              width: 36px;
+              height: 36px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            ">
+              <div style="
+                width: 36px;
+                height: 36px;
+                background: ${color};
+                border: 3px solid white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                font-weight: bold;
+                font-size: 14px;
+                color: white;
+                font-family: Inter, sans-serif;
+              ">
+                ${rank}
+              </div>
+            </div>
+          `,
+          iconSize: [36, 36],
+          iconAnchor: [18, 18],
         });
-      }
 
-      marker.addTo(markersLayerRef.current!);
+        const marker = L.marker([location.lat, location.lng], { icon });
+
+        // Add popup
+        marker.bindPopup(
+          `<div style="font-family: Inter, sans-serif; min-width: 200px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span style="
+                background: #16a34a;
+                color: white;
+                padding: 2px 8px;
+                border-radius: 12px;
+                font-size: 11px;
+                font-weight: bold;
+              ">#${rank}</span>
+              <strong style="font-size: 14px; flex: 1;">${location.locationName}</strong>
+            </div>
+            <span style="font-size: 12px; color: #6b7280;">${location.locationAddress}</span><br/>
+            <span style="font-size: 12px; color: #6b7280;">${location.locationCity}, ${location.locationCounty}</span><br/>
+            <span style="font-size: 13px; font-weight: 600; margin-top: 4px; display: block;">
+              Total: $${location.totalSales.toLocaleString()}
+            </span>
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+              <span style="color: #9333ea;">■</span> Liquor: $${location.liquorSales.toLocaleString()}<br/>
+              <span style="color: #dc2626;">■</span> Wine: $${location.wineSales.toLocaleString()}<br/>
+              <span style="color: #f59e0b;">■</span> Beer: $${location.beerSales.toLocaleString()}
+            </div>
+          </div>`,
+          { closeButton: true }
+        );
+
+        // Add click handler
+        if (onLocationClick) {
+          marker.on("click", () => {
+            onLocationClick(location);
+          });
+        }
+
+        marker.addTo(markersLayerRef.current!);
+      } else {
+        // Standard circle markers for non-top-10 or when rankings disabled
+        const marker = L.circleMarker([location.lat, location.lng], {
+          radius: 7,
+          fillColor: color,
+          color: "#fff",
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.8,
+        });
+
+        // Add popup
+        marker.bindPopup(
+          `<div style="font-family: Inter, sans-serif; min-width: 200px;">
+            <strong style="font-size: 14px;">${location.locationName}</strong><br/>
+            <span style="font-size: 12px; color: #6b7280;">${location.locationAddress}</span><br/>
+            <span style="font-size: 12px; color: #6b7280;">${location.locationCity}, ${location.locationCounty}</span><br/>
+            <span style="font-size: 13px; font-weight: 600; margin-top: 4px; display: block;">
+              Total: $${location.totalSales.toLocaleString()}
+            </span>
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+              <span style="color: #9333ea;">■</span> Liquor: $${location.liquorSales.toLocaleString()}<br/>
+              <span style="color: #dc2626;">■</span> Wine: $${location.wineSales.toLocaleString()}<br/>
+              <span style="color: #f59e0b;">■</span> Beer: $${location.beerSales.toLocaleString()}
+            </div>
+          </div>`,
+          { closeButton: true }
+        );
+
+        // Add click handler
+        if (onLocationClick) {
+          marker.on("click", () => {
+            onLocationClick(location);
+          });
+        }
+
+        marker.addTo(markersLayerRef.current!);
+      }
     });
-  }, [locations, onLocationClick]);
+  }, [locations, onLocationClick, showRankings]);
 
   return <div ref={mapContainerRef} className="w-full h-full" data-testid="map-container" />;
 }

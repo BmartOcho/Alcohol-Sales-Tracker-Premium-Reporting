@@ -232,6 +232,20 @@ export default function Home() {
 
   const totalPages = Math.ceil(filteredLocations.length / ITEMS_PER_PAGE);
 
+  // Map display locations - only top 10 when county selected, top 100 when no filter
+  const mapLocations = useMemo(() => {
+    if (selectedCounty) {
+      // Show top 10 for selected county
+      return filteredLocations.slice(0, 10);
+    } else if (searchQuery.trim()) {
+      // Show all search results (they're already filtered)
+      return filteredLocations;
+    } else {
+      // Show top 100 statewide as default
+      return filteredLocations.slice(0, 100);
+    }
+  }, [filteredLocations, selectedCounty, searchQuery]);
+
   const totalSales = useMemo(() => {
     if (!filteredLocations) return 0;
     return filteredLocations.reduce((sum, loc) => sum + loc.totalSales, 0);
@@ -673,7 +687,7 @@ export default function Home() {
             </div>
           ) : (
             <InteractiveMap
-              locations={filteredLocations}
+              locations={mapLocations}
               allLocations={locations}
               onLocationClick={(location) => {
                 setSelectedPermitNumber(location.permitNumber);
@@ -683,6 +697,7 @@ export default function Home() {
                 setCurrentPage(1);
               }}
               selectedCounty={selectedCounty}
+              showRankings={!!selectedCounty}
             />
           )}
         </div>
