@@ -129,15 +129,31 @@ export function InteractiveMap({
     // Use allLocations for county aggregation (if provided), otherwise use locations
     const locationsForAggregation = allLocations || locations;
 
-    // Create location lookup by county
+    // Create location lookup by county CODE (not name)
     const locationsByCounty = new Map<string, LocationSummary[]>();
+    let unmappedCount = 0;
+    const unmappedCounties = new Set<string>();
+    
     locationsForAggregation.forEach((location) => {
-      const county = location.locationCounty.toUpperCase();
-      if (!locationsByCounty.has(county)) {
-        locationsByCounty.set(county, []);
+      const countyNameUpper = location.locationCounty.toUpperCase().trim();
+      const countyCode = COUNTY_NAME_TO_CODE[countyNameUpper];
+      
+      if (countyCode) {
+        if (!locationsByCounty.has(countyCode)) {
+          locationsByCounty.set(countyCode, []);
+        }
+        locationsByCounty.get(countyCode)!.push(location);
+      } else {
+        // Track unmapped counties for debugging
+        unmappedCount++;
+        unmappedCounties.add(countyNameUpper);
       }
-      locationsByCounty.get(county)!.push(location);
     });
+    
+    // Log unmapped counties for debugging (if any)
+    if (unmappedCount > 0) {
+      console.warn(`[Map] ${unmappedCount} locations with unmapped counties:`, Array.from(unmappedCounties));
+    }
 
     // Style function for county polygons - semi-transparent overlay
     const style = (feature: any) => {

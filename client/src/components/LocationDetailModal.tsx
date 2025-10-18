@@ -101,7 +101,7 @@ export function LocationDetailModal({ location, open, onClose, selectedYear }: L
     .reverse();
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" data-testid="modal-location-detail">
         <DialogHeader>
           <DialogTitle className="text-2xl">{location.locationName}</DialogTitle>
