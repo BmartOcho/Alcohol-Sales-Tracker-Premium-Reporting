@@ -289,122 +289,45 @@ export function InteractiveMap({
     };
 
     // Add markers for each location
-    locations.forEach((location, index) => {
-      const rank = index + 1;
+    locations.forEach((location) => {
       const color = getMarkerColor(location);
 
-      // Use numbered DivIcon for top 10 when rankings shown
-      if (showRankings && rank <= 10) {
-        const icon = L.divIcon({
-          className: 'custom-marker-icon',
-          html: `
-            <div style="
-              position: relative;
-              width: 36px;
-              height: 36px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            ">
-              <div style="
-                width: 36px;
-                height: 36px;
-                background: ${color};
-                border: 3px solid white;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                font-weight: bold;
-                font-size: 14px;
-                color: white;
-                font-family: Inter, sans-serif;
-              ">
-                ${rank}
-              </div>
-            </div>
-          `,
-          iconSize: [36, 36],
-          iconAnchor: [18, 18],
+      // Use standard circle markers
+      const marker = L.circleMarker([location.lat, location.lng], {
+        radius: 7,
+        fillColor: color,
+        color: "#fff",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.8,
+      });
+
+      // Add popup
+      marker.bindPopup(
+        `<div style="font-family: Inter, sans-serif; min-width: 200px;">
+          <strong style="font-size: 14px;">${location.locationName}</strong><br/>
+          <span style="font-size: 12px; color: #6b7280;">${location.locationAddress}</span><br/>
+          <span style="font-size: 12px; color: #6b7280;">${location.locationCity}, ${location.locationCounty}</span><br/>
+          <span style="font-size: 13px; font-weight: 600; margin-top: 4px; display: block;">
+            Total: $${location.totalSales.toLocaleString()}
+          </span>
+          <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+            <span style="color: #9333ea;">■</span> Liquor: $${location.liquorSales.toLocaleString()}<br/>
+            <span style="color: #dc2626;">■</span> Wine: $${location.wineSales.toLocaleString()}<br/>
+            <span style="color: #f59e0b;">■</span> Beer: $${location.beerSales.toLocaleString()}
+          </div>
+        </div>`,
+        { closeButton: true }
+      );
+
+      // Add click handler
+      if (onLocationClick) {
+        marker.on("click", () => {
+          onLocationClick(location);
         });
-
-        const marker = L.marker([location.lat, location.lng], { icon });
-
-        // Add popup
-        marker.bindPopup(
-          `<div style="font-family: Inter, sans-serif; min-width: 200px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span style="
-                background: #16a34a;
-                color: white;
-                padding: 2px 8px;
-                border-radius: 12px;
-                font-size: 11px;
-                font-weight: bold;
-              ">#${rank}</span>
-              <strong style="font-size: 14px; flex: 1;">${location.locationName}</strong>
-            </div>
-            <span style="font-size: 12px; color: #6b7280;">${location.locationAddress}</span><br/>
-            <span style="font-size: 12px; color: #6b7280;">${location.locationCity}, ${location.locationCounty}</span><br/>
-            <span style="font-size: 13px; font-weight: 600; margin-top: 4px; display: block;">
-              Total: $${location.totalSales.toLocaleString()}
-            </span>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
-              <span style="color: #9333ea;">■</span> Liquor: $${location.liquorSales.toLocaleString()}<br/>
-              <span style="color: #dc2626;">■</span> Wine: $${location.wineSales.toLocaleString()}<br/>
-              <span style="color: #f59e0b;">■</span> Beer: $${location.beerSales.toLocaleString()}
-            </div>
-          </div>`,
-          { closeButton: true }
-        );
-
-        // Add click handler
-        if (onLocationClick) {
-          marker.on("click", () => {
-            onLocationClick(location);
-          });
-        }
-
-        marker.addTo(markersLayerRef.current!);
-      } else {
-        // Standard circle markers for non-top-10 or when rankings disabled
-        const marker = L.circleMarker([location.lat, location.lng], {
-          radius: 7,
-          fillColor: color,
-          color: "#fff",
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 0.8,
-        });
-
-        // Add popup
-        marker.bindPopup(
-          `<div style="font-family: Inter, sans-serif; min-width: 200px;">
-            <strong style="font-size: 14px;">${location.locationName}</strong><br/>
-            <span style="font-size: 12px; color: #6b7280;">${location.locationAddress}</span><br/>
-            <span style="font-size: 12px; color: #6b7280;">${location.locationCity}, ${location.locationCounty}</span><br/>
-            <span style="font-size: 13px; font-weight: 600; margin-top: 4px; display: block;">
-              Total: $${location.totalSales.toLocaleString()}
-            </span>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
-              <span style="color: #9333ea;">■</span> Liquor: $${location.liquorSales.toLocaleString()}<br/>
-              <span style="color: #dc2626;">■</span> Wine: $${location.wineSales.toLocaleString()}<br/>
-              <span style="color: #f59e0b;">■</span> Beer: $${location.beerSales.toLocaleString()}
-            </div>
-          </div>`,
-          { closeButton: true }
-        );
-
-        // Add click handler
-        if (onLocationClick) {
-          marker.on("click", () => {
-            onLocationClick(location);
-          });
-        }
-
-        marker.addTo(markersLayerRef.current!);
       }
+
+      marker.addTo(markersLayerRef.current!);
     });
   }, [locations, onLocationClick, showRankings]);
 

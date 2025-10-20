@@ -7,6 +7,7 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 Preferred communication style: Simple, everyday language.
 
 ## Recent Updates (January 2025)
+- **Map Marker Simplification (Jan 2025)**: Removed numbered circle badges for top 10 locations in favor of clean, uniform circle markers throughout the map. All locations now display as simple CircleMarkers (7px radius) color-coded by dominant alcohol category (purple for liquor, red for wine, amber for beer) with white borders for better visibility. This creates a more appealing and professional map appearance.
 - **Authentication System**: Implemented Replit Auth (OIDC) for user login with Google, GitHub, and email/password support. Session management via PostgreSQL with automatic token refresh. Added authentication UI in top right corner: Sign In button for unauthenticated users, user menu dropdown showing name/email with logout option for authenticated users. Fixed year dropdown to properly recognize authenticated users - historical years (2015-2024) now accessible without restrictions for logged-in users.
 - **Subscription & Payments**: Integrated Stripe payment system with recurring subscription options: $10/month or $100/year. Both plans provide full Pro access to all features. Secure payment flow with status validation, customer reuse, and proper error handling for expired/canceled subscriptions. Webhook endpoint (`/api/stripe-webhook`) handles payment confirmations and requires STRIPE_WEBHOOK_SECRET for signature verification.
   - **Webhook Configuration** (REQUIRED for subscription management):
@@ -28,7 +29,7 @@ Preferred communication style: Simple, everyday language.
 - **Location Modal Cleanup (Jan 2025)**: Removed redundant monthly sales scrolling list from location detail modals. Sales data is now displayed exclusively via the Sales Trend chart, eliminating duplication and creating a cleaner, more compact modal interface.
 - **Freemium Paywall (Jan 2025)**: Implemented highly restrictive freemium model where unauthenticated users can ONLY view top 10 locations from a selected county. Home page is publicly accessible without login. Features include:
   - **County-Only Access**: Free users MUST select a county to view any data. No statewide viewing allowed. Empty state shown until county selected.
-  - **Top 10 Per County**: When county selected, displays ONLY top 10 highest-grossing locations with green numbered badges (#1-#10).
+  - **Top 10 Per County**: When county selected, displays ONLY top 10 highest-grossing locations as simple circle markers.
   - **Search Disabled**: Search functionality completely disabled for free users. Input shows "Sign in to search" with lock icon. Clicking triggers paywall.
   - **Current Year Only**: Only 2025 data visible. Years 2015-2024 show "(Login required)" indicator. Selecting historical year triggers paywall.
   - **Backend Enforcement**: API enforces county parameter requirement, page 1 only (no pagination bypass), top 10 limit, and current year validation for unauthenticated requests.
