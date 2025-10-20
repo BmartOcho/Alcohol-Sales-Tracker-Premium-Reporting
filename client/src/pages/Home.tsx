@@ -75,6 +75,12 @@ const COUNTY_CODE_TO_NAME: Record<string, string> = {
 
 export default function Home() {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  
+  // Check if user has active paid subscription
+  const hasPaidAccess = isAuthenticated && user && (
+    user.subscriptionStatus === 'active' || user.subscriptionTier === 'lifetime'
+  );
+  
   const [selectedYear, setSelectedYear] = useState<string>("2025");
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -144,8 +150,8 @@ export default function Home() {
       const allLocations: LocationSummary[] = [...firstData.locations];
       
       // If there are more pages, fetch them in parallel (batches of 5)
-      // ONLY for authenticated users - free users are restricted to page 1 only
-      if (isAuthenticated && firstData.pagination.hasMore) {
+      // ONLY for paid users - free users are restricted to page 1 only
+      if (hasPaidAccess && firstData.pagination.hasMore) {
         const totalPages = firstData.pagination.totalPages;
         const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
         
@@ -186,8 +192,8 @@ export default function Home() {
       console.log(`All data loaded: ${allLocations.length} locations`);
       return allLocations;
     },
-    // For unauthenticated users, only fetch if county is selected
-    enabled: isAuthenticated || !!selectedCounty,
+    // For users without paid access, only fetch if county is selected
+    enabled: hasPaidAccess || !!selectedCounty,
     retry: 2,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -353,42 +359,42 @@ export default function Home() {
                 <SelectContent>
                   {availableYears.map(year => (
                     <SelectItem key={year} value={year}>
-                      {year}{!isAuthenticated && year !== "2025" ? " (Login required)" : ""}
+                      {year}{!hasPaidAccess && year !== "2025" ? " (Subscription required)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
-            {/* Historical data notice - only for unauthenticated users */}
-            {!isAuthenticated && selectedYear !== "2025" && (
+            {/* Historical data notice - only for users without paid access */}
+            {!hasPaidAccess && selectedYear !== "2025" && (
               <p className="text-xs text-amber-600 dark:text-amber-500 px-1">
-                Historical data requires sign in to view
+                Historical data requires a paid subscription
               </p>
             )}
 
             <div className="space-y-2">
               <div className="relative">
-                {!isAuthenticated && <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
-                {isAuthenticated && <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
+                {!hasPaidAccess && <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
+                {hasPaidAccess && <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
                 <Input
-                  placeholder={isAuthenticated ? "Search locations, cities, counties..." : "Sign in to search"}
+                  placeholder={hasPaidAccess ? "Search locations, cities, counties..." : "Subscribe to search"}
                   value={searchQuery}
                   onChange={(e) => {
-                    if (isAuthenticated) {
+                    if (hasPaidAccess) {
                       const query = e.target.value;
                       setSearchQuery(query);
                       setCurrentPage(1);
                     }
                   }}
                   onFocus={() => {
-                    if (!isAuthenticated) {
+                    if (!hasPaidAccess) {
                       setPaywallReason('data_access');
                       setShowPaywall(true);
                     }
                   }}
                   onClick={() => {
-                    if (!isAuthenticated) {
+                    if (!hasPaidAccess) {
                       setPaywallReason('data_access');
                       setShowPaywall(true);
                     }
@@ -398,8 +404,8 @@ export default function Home() {
                 />
               </div>
               
-              {/* Search message for unauthenticated users */}
-              {!isAuthenticated && (
+              {/* Search message for users without paid access */}
+              {!hasPaidAccess && (
                 <p className="text-xs text-muted-foreground px-1">
                   Select a county above to view top 10 locations
                 </p>
@@ -470,8 +476,8 @@ export default function Home() {
               </div>
             )}
 
-            {/* Empty state for unauthenticated users without county selection */}
-            {!isAuthenticated && !selectedCounty && !isLoading && !error && (
+            {/* Empty state for users without paid access and no county selection */}
+            {!hasPaidAccess && !selectedCounty && !isLoading && !error && (
               <Card className="p-8 text-center">
                 <div className="space-y-4">
                   <div className="flex justify-center">
@@ -494,7 +500,7 @@ export default function Home() {
                       }}
                       data-testid="button-signin-empty-state"
                     >
-                      Sign in to unlock full access
+                      {isAuthenticated ? "Upgrade to Pro" : "Sign in to unlock full access"}
                     </Button>
                   </div>
                 </div>
@@ -509,20 +515,19 @@ export default function Home() {
                   const rank = globalIndex + 1;
                   
                   // Top 10 badges only show when viewing all Texas or county-filtered (NOT during searches)
-                  // Only show for unauthenticated users to highlight available data
-                  const showTopTenBadge = !isAuthenticated && !searchQuery.trim() && rank <= 10;
+                  // Only show for users without paid access to highlight available free data
+                  const showTopTenBadge = !hasPaidAccess && !searchQuery.trim() && rank <= 10;
                   
-                  // Only blur and restrict access for unauthenticated users
-                  const shouldBlur = !isAuthenticated && !searchQuery.trim() && rank > 10;
+                  // Only blur and restrict access for users without paid subscription
+                  const shouldBlur = !hasPaidAccess && !searchQuery.trim() && rank > 10;
                   
                   const handleClick = () => {
-                    // All unauthenticated users should be prompted to sign up when clicking sidebar
-                    if (!isAuthenticated) {
+                    // Users without paid subscription should be prompted to upgrade
+                    if (!hasPaidAccess) {
                       setPaywallReason('data_access');
                       setShowPaywall(true);
                     }
-                    // Authenticated users with paid subscriptions will have full access in future update
-                    // For now, authenticated users can also trigger paywall until subscription check is implemented
+                    // TODO: For paid users, navigate to Reports page or show detail view
                   };
                   
                   return (

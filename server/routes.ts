@@ -14,6 +14,22 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 console.log('[Stripe] Initialized with production keys');
 
+// Helper function to check if user has active paid subscription
+async function hasActiveSubscription(userId: string | undefined): Promise<boolean> {
+  if (!userId) return false;
+  
+  try {
+    const user = await storage.getUser(userId);
+    if (!user) return false;
+    
+    // Check if user has active subscription or lifetime access
+    return user.subscriptionStatus === 'active' || user.subscriptionTier === 'lifetime';
+  } catch (error) {
+    console.error('Error checking subscription status:', error);
+    return false;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Stripe webhook endpoint - must come before JSON parsing middleware
   // This endpoint needs raw body for signature verification
@@ -508,16 +524,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = parseInt(req.query.page as string) || 1;
       let limit = parseInt(req.query.limit as string) || 1000;
       
-      // Check if user is authenticated
-      const isAuth = req.user?.claims?.sub;
+      // Check if user has active paid subscription
+      const userId = req.user?.claims?.sub;
+      const hasPaidAccess = await hasActiveSubscription(userId);
       
-      // Freemium restrictions for unauthenticated users
-      if (!isAuth) {
+      // Freemium restrictions for users without paid subscription
+      if (!hasPaidAccess) {
         // Enforce county-only access (no statewide view)
         if (!county) {
           return res.status(401).json({ 
-            error: "Authentication required",
-            message: "Free users must select a county. Sign in to view all locations."
+            error: "Subscription required",
+            message: "County selection required for free preview. Upgrade for statewide access."
           });
         }
         
@@ -525,22 +542,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const currentYear = new Date().getFullYear().toString();
         if (!startDate || !endDate) {
           return res.status(401).json({ 
-            error: "Authentication required",
-            message: "Date range required for free users."
+            error: "Subscription required",
+            message: "Date range required for data access."
           });
         }
         if (!startDate.startsWith(currentYear) || !endDate.startsWith(currentYear)) {
           return res.status(401).json({ 
-            error: "Authentication required",
-            message: "Historical data requires sign in to view."
+            error: "Subscription required",
+            message: "Historical data requires a paid subscription. Upgrade to access."
           });
         }
         
         // Enforce page 1 only (prevent pagination bypass - including negative pages)
         if (page !== 1) {
           return res.status(401).json({ 
-            error: "Authentication required",
-            message: "Only page 1 is available for free users. Sign in to view more."
+            error: "Subscription required",
+            message: "Only page 1 is available for free users. Upgrade to view more."
+          });
+        }
+        
+        // Block search functionality for non-paying users
+        if (search && search.trim()) {
+          return res.status(401).json({ 
+            error: "Subscription required",
+            message: "Search functionality requires a paid subscription. Upgrade to search."
           });
         }
         
