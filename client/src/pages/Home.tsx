@@ -658,8 +658,8 @@ export default function Home() {
         <div className="p-2 lg:p-4 border-b flex-shrink-0">
           <div className="text-xs lg:text-sm text-muted-foreground">
             <p className="font-medium">
-              <span className="hidden sm:inline">Click location markers for details • Click counties to filter sidebar</span>
-              <span className="sm:hidden">Tap markers & counties to explore</span>
+              <span className="hidden sm:inline">Click counties to filter map</span>
+              <span className="sm:hidden">Tap counties to explore</span>
             </p>
             <p className="text-xs mt-1 hidden sm:block">
               Marker colors: <span style={{ color: "#9333ea" }}>■ Liquor-dominant</span>{" "}
