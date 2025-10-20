@@ -61,10 +61,8 @@ const COUNTY_NAME_TO_CODE: Record<string, string> = {
 type InteractiveMapProps = {
   locations: LocationSummary[];
   allLocations?: LocationSummary[];
-  onLocationClick?: (location: LocationSummary) => void;
   onCountyClick?: (countyName: string) => void;
   selectedCounty?: string | null;
-  showRankings?: boolean;
   center?: [number, number];
   zoom?: number;
 };
@@ -72,16 +70,13 @@ type InteractiveMapProps = {
 export function InteractiveMap({
   locations,
   allLocations,
-  onLocationClick,
   onCountyClick,
   selectedCounty,
-  showRankings = false,
   center = [31.9686, -99.9018],
   zoom = 6,
 }: InteractiveMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersLayerRef = useRef<any>(null);
   const countyLayerRef = useRef<L.GeoJSON | null>(null);
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
 
@@ -104,9 +99,6 @@ export function InteractiveMap({
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         className: "map-tiles",
       }).addTo(mapRef.current);
-
-      // Initialize markers layer group
-      markersLayerRef.current = L.layerGroup().addTo(mapRef.current);
     }
 
     return () => {
@@ -265,71 +257,6 @@ export function InteractiveMap({
       });
     }
   }, [selectedCounty, geoJsonData]);
-
-  // Render location markers
-  useEffect(() => {
-    if (!mapRef.current || !markersLayerRef.current || !locations) return;
-
-    // Clear existing markers
-    markersLayerRef.current.clearLayers();
-
-    // Get color based on category
-    const getMarkerColor = (location: LocationSummary) => {
-      const liquorRatio = location.liquorSales / location.totalSales;
-      const wineRatio = location.wineSales / location.totalSales;
-      const beerRatio = location.beerSales / location.totalSales;
-
-      if (liquorRatio > wineRatio && liquorRatio > beerRatio) {
-        return "#9333ea"; // purple for liquor
-      } else if (wineRatio > beerRatio) {
-        return "#dc2626"; // red for wine
-      } else {
-        return "#f59e0b"; // amber for beer
-      }
-    };
-
-    // Add markers for each location
-    locations.forEach((location) => {
-      const color = getMarkerColor(location);
-
-      // Use standard circle markers
-      const marker = L.circleMarker([location.lat, location.lng], {
-        radius: 7,
-        fillColor: color,
-        color: "#fff",
-        weight: 2,
-        opacity: 1,
-        fillOpacity: 0.8,
-      });
-
-      // Add popup
-      marker.bindPopup(
-        `<div style="font-family: Inter, sans-serif; min-width: 200px;">
-          <strong style="font-size: 14px;">${location.locationName}</strong><br/>
-          <span style="font-size: 12px; color: #6b7280;">${location.locationAddress}</span><br/>
-          <span style="font-size: 12px; color: #6b7280;">${location.locationCity}, ${location.locationCounty}</span><br/>
-          <span style="font-size: 13px; font-weight: 600; margin-top: 4px; display: block;">
-            Total: $${location.totalSales.toLocaleString()}
-          </span>
-          <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
-            <span style="color: #9333ea;">■</span> Liquor: $${location.liquorSales.toLocaleString()}<br/>
-            <span style="color: #dc2626;">■</span> Wine: $${location.wineSales.toLocaleString()}<br/>
-            <span style="color: #f59e0b;">■</span> Beer: $${location.beerSales.toLocaleString()}
-          </div>
-        </div>`,
-        { closeButton: true }
-      );
-
-      // Add click handler
-      if (onLocationClick) {
-        marker.on("click", () => {
-          onLocationClick(location);
-        });
-      }
-
-      marker.addTo(markersLayerRef.current!);
-    });
-  }, [locations, onLocationClick, showRankings]);
 
   return <div ref={mapContainerRef} className="w-full h-full" data-testid="map-container" />;
 }

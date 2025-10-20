@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { InteractiveMap } from "@/components/InteractiveMap";
-import { LocationDetailModal } from "@/components/LocationDetailModal";
 import { FreemiumPaywallModal } from "@/components/FreemiumPaywallModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,7 +76,6 @@ const COUNTY_CODE_TO_NAME: Record<string, string> = {
 export default function Home() {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [selectedYear, setSelectedYear] = useState<string>("2025");
-  const [selectedPermitNumber, setSelectedPermitNumber] = useState<string | null>(null);
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -104,24 +102,6 @@ export default function Home() {
 
   // Available years: 2015-2024 in database, 2025 from API (real-time)
   const availableYears = ["2025", "2024", "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015"];
-
-  // Fetch full location details (all-time data) when a location is selected
-  const { data: selectedLocationFull } = useQuery<LocationSummary>({
-    queryKey: ["/api/locations/full", selectedPermitNumber], // Use unique key to avoid cache conflicts
-    queryFn: async () => {
-      const response = await fetch(`/api/locations/${selectedPermitNumber}`);
-      if (!response.ok) throw new Error('Failed to fetch location');
-      const data = await response.json();
-      console.log(`[HOME] Fetched full location data:`, {
-        permitNumber: data.permitNumber,
-        totalSales: data.totalSales,
-        monthlyRecords: data.monthlyRecords?.length
-      });
-      return data;
-    },
-    enabled: !!selectedPermitNumber,
-    staleTime: 0, // Always fetch fresh all-time data
-  });
 
   const dateRange = useMemo(() => {
     const year = parseInt(selectedYear);
@@ -534,16 +514,15 @@ export default function Home() {
                   
                   // Only blur and restrict access for unauthenticated users
                   const shouldBlur = !isAuthenticated && !searchQuery.trim() && rank > 10;
-                  const isHistoricalYear = selectedYear !== "2025";
-                  const requiresLogin = !isAuthenticated && (isHistoricalYear || shouldBlur);
                   
                   const handleClick = () => {
-                    if (requiresLogin) {
+                    // All unauthenticated users should be prompted to sign up when clicking sidebar
+                    if (!isAuthenticated) {
                       setPaywallReason('data_access');
                       setShowPaywall(true);
-                    } else {
-                      setSelectedPermitNumber(location.permitNumber);
                     }
+                    // Authenticated users with paid subscriptions will have full access in future update
+                    // For now, authenticated users can also trigger paywall until subscription check is implemented
                   };
                   
                   return (
@@ -638,14 +617,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Location Detail Modal */}
-      <LocationDetailModal
-        location={selectedLocationFull || null}
-        open={!!selectedPermitNumber}
-        onClose={() => setSelectedPermitNumber(null)}
-        selectedYear={selectedYear}
-      />
-
       {/* Freemium Paywall Modal */}
       <FreemiumPaywallModal
         open={showPaywall}
@@ -660,11 +631,6 @@ export default function Home() {
             <p className="font-medium">
               <span className="hidden sm:inline">Click counties to filter map</span>
               <span className="sm:hidden">Tap counties to explore</span>
-            </p>
-            <p className="text-xs mt-1 hidden sm:block">
-              Marker colors: <span style={{ color: "#9333ea" }}>■ Liquor-dominant</span>{" "}
-              <span style={{ color: "#dc2626" }}>■ Wine-dominant</span>{" "}
-              <span style={{ color: "#f59e0b" }}>■ Beer-dominant</span>
             </p>
           </div>
         </div>
@@ -687,15 +653,11 @@ export default function Home() {
             <InteractiveMap
               locations={mapLocations}
               allLocations={locations}
-              onLocationClick={(location) => {
-                setSelectedPermitNumber(location.permitNumber);
-              }}
               onCountyClick={(countyName) => {
                 setSelectedCounty(countyName);
                 setCurrentPage(1);
               }}
               selectedCounty={selectedCounty}
-              showRankings={!!selectedCounty && !debouncedSearch.trim()}
             />
           )}
         </div>
