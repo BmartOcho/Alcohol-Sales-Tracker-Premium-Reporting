@@ -78,7 +78,7 @@ export default function Home() {
   
   // Check if user has active paid subscription
   const hasPaidAccess = isAuthenticated && user && (
-    user.subscriptionStatus === 'active' || user.subscriptionTier === 'lifetime'
+    (user as any).subscriptionStatus === 'active' || (user as any).subscriptionTier === 'lifetime'
   );
   
   const [selectedYear, setSelectedYear] = useState<string>("2025");
@@ -625,8 +625,10 @@ export default function Home() {
       {/* Freemium Paywall Modal */}
       <FreemiumPaywallModal
         open={showPaywall}
+        onClose={() => setShowPaywall(false)}
         searchesUsed={getSearchCount()}
         reason={paywallReason}
+        isAuthenticated={isAuthenticated}
       />
 
       {/* Map Section */}

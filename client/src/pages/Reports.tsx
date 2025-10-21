@@ -1,25 +1,51 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ArrowLeft, FileText, BarChart3, TrendingUp } from "lucide-react";
+import { ArrowLeft, FileText, BarChart3, TrendingUp, Lock, Loader2 } from "lucide-react";
 import { PermitReport } from "@/components/reports/PermitReport";
 import { PermitComparison } from "@/components/reports/PermitComparison";
 import { Outliers } from "@/components/reports/Outliers";
 import { SEO } from "@/components/SEO";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Reports() {
+  const { isAuthenticated, user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("location");
   const [selectedPermitForReport, setSelectedPermitForReport] = useState<string | null>(null);
   const [selectedDateRange, setSelectedDateRange] = useState<{ start: string; end: string } | null>(null);
+
+  // Check if user has paid access
+  const hasPaidAccess = isAuthenticated && user && (
+    (user as any).subscriptionStatus === 'active' || 
+    (user as any).subscriptionTier === 'lifetime'
+  );
 
   const handleNavigateToLocationReport = (permitNumber: string, startDate: string, endDate: string) => {
     setSelectedPermitForReport(permitNumber);
     setSelectedDateRange({ start: startDate, end: endDate });
     setActiveTab("location");
   };
+
+  const handleSignIn = () => {
+    window.location.href = "/api/login";
+  };
+
+  const handleUpgrade = () => {
+    window.location.href = "/subscribe";
+  };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -50,7 +76,70 @@ export default function Reports() {
       </header>
 
       <main className="container mx-auto px-3 lg:px-4 py-4 lg:py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        {!hasPaidAccess ? (
+          <Card className="max-w-2xl mx-auto" data-testid="card-reports-paywall">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <Lock className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">Premium Feature: Reports & Analytics</CardTitle>
+              <CardDescription className="text-base pt-2">
+                Access detailed location reports, multi-location comparisons, and outlier analysis with a Pro subscription.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                <div className="flex items-start gap-2">
+                  <FileText className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-sm">Location Sales Reports</p>
+                    <p className="text-sm text-muted-foreground">Analyze detailed sales data for any location with charts and insights</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <BarChart3 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-sm">Multi-Location Comparison</p>
+                    <p className="text-sm text-muted-foreground">Compare sales performance across multiple establishments</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-sm">Outliers Analysis</p>
+                    <p className="text-sm text-muted-foreground">Identify locations with unusual sales patterns using Z-score analysis</p>
+                  </div>
+                </div>
+              </div>
+
+              {isAuthenticated ? (
+                <Button 
+                  className="w-full" 
+                  size="lg"
+                  onClick={handleUpgrade}
+                  data-testid="button-upgrade-reports"
+                >
+                  Upgrade to Pro - Starting at $10/month
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <Button 
+                    className="w-full" 
+                    size="lg"
+                    onClick={handleSignIn}
+                    data-testid="button-signin-reports"
+                  >
+                    Sign In to Continue
+                  </Button>
+                  <p className="text-center text-xs text-muted-foreground">
+                    New users get a free trial • Sign in with Google or GitHub
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-4 lg:mb-8" data-testid="tabs-report-types">
             <TabsTrigger value="location" data-testid="tab-location-report" className="text-xs sm:text-sm">
               <FileText className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
@@ -105,6 +194,7 @@ export default function Reports() {
             </Card>
           </TabsContent>
         </Tabs>
+        )}
       </main>
     </div>
   );
