@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { InteractiveMap } from "@/components/InteractiveMap";
 import { FreemiumPaywallModal } from "@/components/FreemiumPaywallModal";
+import { LocationDetailModal } from "@/components/LocationDetailModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +90,7 @@ export default function Home() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallReason, setPaywallReason] = useState<'search_limit' | 'data_access'>('search_limit');
   const [remainingSearches, setRemainingSearches] = useState(3);
+  const [selectedLocation, setSelectedLocation] = useState<LocationSummary | null>(null);
   const ITEMS_PER_PAGE = 100;
 
   // Debounce search query (300ms delay)
@@ -526,8 +528,10 @@ export default function Home() {
                     if (!hasPaidAccess) {
                       setPaywallReason('data_access');
                       setShowPaywall(true);
+                    } else {
+                      // For paid users, show location detail modal
+                      setSelectedLocation(location);
                     }
-                    // TODO: For paid users, navigate to Reports page or show detail view
                   };
                   
                   return (
@@ -629,6 +633,14 @@ export default function Home() {
         searchesUsed={getSearchCount()}
         reason={paywallReason}
         isAuthenticated={isAuthenticated}
+      />
+
+      {/* Location Detail Modal */}
+      <LocationDetailModal
+        location={selectedLocation}
+        open={!!selectedLocation}
+        onClose={() => setSelectedLocation(null)}
+        selectedYear={selectedYear}
       />
 
       {/* Map Section */}
