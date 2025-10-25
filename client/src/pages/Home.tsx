@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { InteractiveMap } from "@/components/InteractiveMap";
 import { FreemiumPaywallModal } from "@/components/FreemiumPaywallModal";
 import { LocationDetailModal } from "@/components/LocationDetailModal";
@@ -76,6 +76,7 @@ const COUNTY_CODE_TO_NAME: Record<string, string> = {
 
 export default function Home() {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const [, setLocation] = useLocation();
   
   // Check if user has active paid subscription
   const hasPaidAccess = isAuthenticated && user && (
@@ -318,7 +319,7 @@ export default function Home() {
                   {(user as any)?.subscriptionTier !== 'pro' && (user as any)?.subscriptionTier !== 'lifetime' && (
                     <>
                       <DropdownMenuItem 
-                        onClick={() => window.location.href = '/subscribe'}
+                        onClick={() => setLocation('/subscribe')}
                         data-testid="button-upgrade"
                       >
                         <CreditCard className="h-4 w-4 mr-2" />

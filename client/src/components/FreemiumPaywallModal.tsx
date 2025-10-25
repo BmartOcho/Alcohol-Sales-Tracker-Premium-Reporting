@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Lock, Sparkles, CreditCard } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface FreemiumPaywallModalProps {
   open: boolean;
@@ -17,12 +18,14 @@ export function FreemiumPaywallModal({
   reason = 'search_limit',
   isAuthenticated = false 
 }: FreemiumPaywallModalProps) {
+  const [, setLocation] = useLocation();
+
   const handleSignIn = () => {
     window.location.href = "/api/login";
   };
 
   const handleUpgrade = () => {
-    window.location.href = "/subscribe";
+    setLocation("/subscribe");
   };
 
   const isSearchLimit = reason === 'search_limit';

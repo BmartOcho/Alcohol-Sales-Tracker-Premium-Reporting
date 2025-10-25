@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function Reports() {
   const { isAuthenticated, user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("location");
   const [selectedPermitForReport, setSelectedPermitForReport] = useState<string | null>(null);
   const [selectedDateRange, setSelectedDateRange] = useState<{ start: string; end: string } | null>(null);
@@ -34,15 +35,24 @@ export default function Reports() {
   };
 
   const handleUpgrade = () => {
-    window.location.href = "/subscribe";
+    setLocation("/subscribe");
   };
 
   // Show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4 px-4">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+          <div>
+            <p className="text-lg font-medium">Loading Reports</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Preparing your analytics dashboard...
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

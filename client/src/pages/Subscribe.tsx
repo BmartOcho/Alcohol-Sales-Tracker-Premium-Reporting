@@ -2,6 +2,7 @@
 import { useStripe, Elements, PaymentElement, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useEffect, useState } from 'react';
+import { useLocation } from 'wouter';
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,7 +18,7 @@ if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 console.log('[Stripe] Using production mode keys');
 
-const SubscribeForm = ({ setupIntentId }: { setupIntentId: string }) => {
+const SubscribeForm = ({ setupIntentId, onSuccess }: { setupIntentId: string; onSuccess: () => void }) => {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
@@ -67,7 +68,7 @@ const SubscribeForm = ({ setupIntentId }: { setupIntentId: string }) => {
 
         // Redirect to home after success
         setTimeout(() => {
-          window.location.href = '/';
+          onSuccess();
         }, 2000);
       } catch (err: any) {
         toast({
@@ -99,6 +100,7 @@ type PlanType = 'monthly' | 'yearly';
 
 export default function Subscribe() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('monthly');
   const [clientSecret, setClientSecret] = useState("");
   const [setupIntentId, setSetupIntentId] = useState("");
@@ -178,7 +180,7 @@ export default function Subscribe() {
               Sign In with Google/GitHub
             </Button>
             <Button 
-              onClick={() => window.location.href = '/'} 
+              onClick={() => setLocation('/')} 
               variant="outline"
               className="w-full"
               data-testid="button-back-home"
@@ -200,7 +202,7 @@ export default function Subscribe() {
             <CardDescription>{error}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => window.location.href = '/'} data-testid="button-back-home">
+            <Button onClick={() => setLocation('/')} data-testid="button-back-home">
               Back to Home
             </Button>
           </CardContent>
@@ -348,7 +350,7 @@ export default function Subscribe() {
             </CardHeader>
             <CardContent>
               <Elements stripe={stripePromise} options={{ clientSecret }} key={clientSecret}>
-                <SubscribeForm setupIntentId={setupIntentId} />
+                <SubscribeForm setupIntentId={setupIntentId} onSuccess={() => setLocation('/')} />
               </Elements>
             </CardContent>
           </Card>
