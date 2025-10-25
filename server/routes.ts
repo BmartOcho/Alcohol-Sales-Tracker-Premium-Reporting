@@ -613,6 +613,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         locations = locations.filter(loc => loc.totalSales >= minRevenue);
       }
       
+      // Sort by total sales (highest first) to ensure paginated results show top performers
+      // This is critical for freemium tier where users see "top 10" - they should be the actual top 10
+      locations.sort((a, b) => b.totalSales - a.totalSales);
+      
       console.log(`Found ${locations.length} locations in database after filters`);
 
       // Paginate the results
