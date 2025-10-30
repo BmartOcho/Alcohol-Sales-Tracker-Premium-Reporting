@@ -94,7 +94,25 @@ export default function Home() {
   const [showDataRefresh, setShowDataRefresh] = useState(false);
   const [remainingSearches, setRemainingSearches] = useState(3);
   const [selectedLocation, setSelectedLocation] = useState<LocationSummary | null>(null);
+  const [latestDataDate, setLatestDataDate] = useState<string | null>(null);
   const ITEMS_PER_PAGE = 100;
+  
+  // Fetch latest data date for freshness indicator
+  useEffect(() => {
+    const fetchLatestDate = async () => {
+      try {
+        const response = await fetch('/api/admin/data-status');
+        if (response.ok) {
+          const data = await response.json();
+          setLatestDataDate(data.latestDate);
+        }
+      } catch (error) {
+        console.error('Failed to fetch latest data date:', error);
+      }
+    };
+    
+    fetchLatestDate();
+  }, []);
 
   // Debounce search query (300ms delay)
   useEffect(() => {
@@ -258,9 +276,17 @@ export default function Home() {
         <div className="p-3 lg:p-4 border-b space-y-3">
           {/* Title with Theme Toggle */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Star className="h-5 w-5 lg:h-6 lg:w-6 text-primary flex-shrink-0" />
-              <h1 className="text-lg lg:text-xl font-bold">Texas Alcohol Sales</h1>
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2">
+                <Star className="h-5 w-5 lg:h-6 lg:w-6 text-primary flex-shrink-0" />
+                <h1 className="text-lg lg:text-xl font-bold">Texas Alcohol Sales</h1>
+              </div>
+              {latestDataDate && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground ml-7 lg:ml-8">
+                  <Calendar className="h-3 w-3" />
+                  <span>Data updated: {new Date(latestDataDate).toLocaleDateString()}</span>
+                </div>
+              )}
             </div>
             <ThemeToggle />
           </div>

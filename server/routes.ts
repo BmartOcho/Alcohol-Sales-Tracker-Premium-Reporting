@@ -667,8 +667,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin endpoint to get current data status
-  app.get("/api/admin/data-status", isAuthenticated, async (req: any, res) => {
+  // Public endpoint to get current data status (used for data freshness indicator)
+  app.get("/api/admin/data-status", async (req: any, res) => {
     try {
       const { getLatestObligationDate } = await import("./scripts/importData");
       const latestDate = await getLatestObligationDate();

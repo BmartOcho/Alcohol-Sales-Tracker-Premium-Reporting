@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { importIncrementalData } from "./scripts/importData";
+import cron from "node-cron";
 
 const app = express();
 app.use(express.json());
@@ -47,6 +49,37 @@ app.use((req, res, next) => {
   next();
 });
 
+// Schedule daily data refresh at 3 AM Central Time (respects DST)
+function scheduleDataRefresh() {
+  const performRefresh = async () => {
+    try {
+      log("Starting scheduled data refresh...");
+      const result = await importIncrementalData();
+      log(`Scheduled refresh complete: ${result.message}, imported ${result.imported || 0} records`);
+    } catch (error: any) {
+      log(`Scheduled refresh failed: ${error.message}`);
+    }
+  };
+  
+  // Run at 3 AM Central Time every day (respects DST automatically)
+  // Cron format: minute hour day month dayOfWeek
+  // timezone: 'America/Chicago' handles both CST and CDT
+  cron.schedule('0 3 * * *', performRefresh, {
+    timezone: 'America/Chicago'
+  });
+  
+  log("Data refresh scheduler initialized - will run daily at 3 AM Central Time (CST/CDT)");
+  
+  // Optionally run immediately on startup if we're near the scheduled time
+  const now = new Date();
+  const centralHour = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' })).getHours();
+  
+  if (centralHour === 3) {
+    log("Starting initial data refresh (launched at 3 AM)...");
+    performRefresh();
+  }
+}
+
 (async () => {
   const server = await registerRoutes(app);
 
@@ -78,5 +111,8 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Schedule daily data refresh at 3 AM CST (9 AM UTC)
+    scheduleDataRefresh();
   });
 })();
