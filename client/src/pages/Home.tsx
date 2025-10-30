@@ -4,6 +4,7 @@ import { Link, useLocation } from "wouter";
 import { InteractiveMap } from "@/components/InteractiveMap";
 import { FreemiumPaywallModal } from "@/components/FreemiumPaywallModal";
 import { LocationDetailModal } from "@/components/LocationDetailModal";
+import { DataRefreshDialog } from "@/components/DataRefreshDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText, Lock, User, LogOut, CreditCard, Crown } from "lucide-react";
+import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText, Lock, User, LogOut, CreditCard, Crown, Database } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { LocationSummary } from "@shared/schema";
@@ -90,6 +91,7 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallReason, setPaywallReason] = useState<'search_limit' | 'data_access'>('search_limit');
+  const [showDataRefresh, setShowDataRefresh] = useState(false);
   const [remainingSearches, setRemainingSearches] = useState(3);
   const [selectedLocation, setSelectedLocation] = useState<LocationSummary | null>(null);
   const ITEMS_PER_PAGE = 100;
@@ -324,6 +326,19 @@ export default function Home() {
                       >
                         <CreditCard className="h-4 w-4 mr-2" />
                         Upgrade to Pro
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  {/* Show data refresh option for paid users */}
+                  {((user as any)?.subscriptionTier === 'pro' || (user as any)?.subscriptionTier === 'lifetime') && (
+                    <>
+                      <DropdownMenuItem 
+                        onClick={() => setShowDataRefresh(true)}
+                        data-testid="button-data-refresh"
+                      >
+                        <Database className="h-4 w-4 mr-2" />
+                        Data Settings
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
@@ -642,6 +657,11 @@ export default function Home() {
         open={!!selectedLocation}
         onClose={() => setSelectedLocation(null)}
         selectedYear={selectedYear}
+      />
+
+      <DataRefreshDialog
+        open={showDataRefresh}
+        onOpenChange={setShowDataRefresh}
       />
 
       {/* Map Section */}

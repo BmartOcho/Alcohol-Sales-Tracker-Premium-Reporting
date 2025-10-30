@@ -667,6 +667,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint to get current data status
+  app.get("/api/admin/data-status", isAuthenticated, async (req: any, res) => {
+    try {
+      const { getLatestObligationDate } = await import("./scripts/importData");
+      const latestDate = await getLatestObligationDate();
+      
+      res.json({
+        latestDate: latestDate?.toISOString().split('T')[0] || null,
+        hasData: !!latestDate
+      });
+    } catch (error) {
+      console.error("Error getting data status:", error);
+      res.status(500).json({ 
+        error: "Failed to get data status",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Admin endpoint to refresh data from Texas Open Data Portal
+  app.post("/api/admin/refresh-data", isAuthenticated, async (req: any, res) => {
+    try {
+      // Only allow authenticated users with paid subscription
+      const userId = req.user?.claims?.sub;
+      const hasPaidAccess = await hasActiveSubscription(userId);
+      
+      if (!hasPaidAccess) {
+        return res.status(403).json({ 
+          error: "Unauthorized",
+          message: "Data refresh requires an active subscription" 
+        });
+      }
+
+      console.log(`Data refresh requested by user: ${userId}`);
+      
+      // Import the incremental data function
+      const { importIncrementalData, getLatestObligationDate } = await import("./scripts/importData");
+      
+      // Get current latest date before import
+      const latestBeforeImport = await getLatestObligationDate();
+      
+      // Run incremental import
+      const result = await importIncrementalData();
+      
+      // Clear cache after successful import
+      storage.clearCache();
+      
+      res.json({
+        success: true,
+        imported: result.imported,
+        message: result.message,
+        latestDate: result.latestDate,
+        previousLatestDate: latestBeforeImport?.toISOString().split('T')[0]
+      });
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      res.status(500).json({ 
+        error: "Failed to refresh data",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // New endpoint for Outliers tab - get unique cities and zips
   app.get("/api/areas", async (req, res) => {
     try {

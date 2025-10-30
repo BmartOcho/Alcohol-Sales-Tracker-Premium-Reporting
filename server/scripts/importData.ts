@@ -1,7 +1,119 @@
 import { db } from "../db";
 import { monthlySales } from "@shared/schema";
 import { fetchAllTexasAlcoholData } from "../services/texasDataService";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
+
+export async function getLatestObligationDate(): Promise<Date | null> {
+  const result = await db
+    .select({ latestDate: monthlySales.obligationEndDate })
+    .from(monthlySales)
+    .orderBy(desc(monthlySales.obligationEndDate))
+    .limit(1);
+  
+  return result.length > 0 ? result[0].latestDate : null;
+}
+
+export async function importIncrementalData(): Promise<{ imported: number; message: string; latestDate?: string }> {
+  console.log("\n🔄 Starting incremental data update...");
+  
+  const latestDate = await getLatestObligationDate();
+  
+  if (!latestDate) {
+    console.log("⚠️  No existing data found. Use full year import instead: tsx importData.ts 2025");
+    return { imported: 0, message: "No existing data - run full import first" };
+  }
+  
+  const latestDateStr = latestDate.toISOString().split('T')[0];
+  console.log(`📅 Latest data in database: ${latestDateStr}`);
+  
+  // Start from the SAME date to catch any new records added for that date
+  // onConflictDoNothing will skip duplicates thanks to uniqueness constraint
+  const startDateStr = latestDateStr + 'T00:00:00.000';
+  
+  const now = new Date();
+  const endDateStr = now.toISOString().split('T')[0] + 'T23:59:59.999';
+  
+  console.log(`📥 Fetching new records from ${startDateStr} to ${endDateStr}...`);
+  
+  const locations = await fetchAllTexasAlcoholData(Infinity, startDateStr, endDateStr);
+  
+  if (locations.length === 0) {
+    console.log("✨ No new data available. Database is up to date!");
+    return { imported: 0, message: "Database already up to date", latestDate: latestDateStr };
+  }
+  
+  console.log(`✓ Fetched ${locations.length} locations with new monthly records`);
+  
+  const allMonthlyRecords = locations.flatMap(location => 
+    location.monthlyRecords.map(record => ({
+      permitNumber: record.permitNumber,
+      locationName: record.locationName,
+      locationAddress: record.locationAddress,
+      locationCity: record.locationCity,
+      locationCounty: record.locationCounty,
+      locationZip: record.locationZip,
+      taxpayerName: record.taxpayerName,
+      obligationEndDate: new Date(record.obligationEndDate),
+      liquorReceipts: record.liquorReceipts.toString(),
+      wineReceipts: record.wineReceipts.toString(),
+      beerReceipts: record.beerReceipts.toString(),
+      coverChargeReceipts: record.coverChargeReceipts.toString(),
+      totalReceipts: record.totalReceipts.toString(),
+      lat: record.lat.toString(),
+      lng: record.lng.toString(),
+    }))
+  );
+  
+  console.log(`📊 Total new monthly records to import: ${allMonthlyRecords.length}`);
+  
+  //  Get existing permit/date combinations to filter out duplicates
+  const existingRecords = await db
+    .select({
+      permitNumber: monthlySales.permitNumber,
+      obligationEndDate: monthlySales.obligationEndDate
+    })
+    .from(monthlySales)
+    .where(
+      and(
+        gte(monthlySales.obligationEndDate, new Date(startDateStr)),
+        lte(monthlySales.obligationEndDate, new Date(endDateStr))
+      )
+    );
+  
+  const existingKeys = new Set(
+    existingRecords.map(r => `${r.permitNumber}|${r.obligationEndDate.toISOString()}`)
+  );
+  
+  // Filter out records that already exist
+  const newRecords = allMonthlyRecords.filter(record => {
+    const key = `${record.permitNumber}|${record.obligationEndDate.toISOString()}`;
+    return !existingKeys.has(key);
+  });
+  
+  console.log(`📝 Found ${allMonthlyRecords.length - newRecords.length} duplicate records, importing ${newRecords.length} new records`);
+  
+  if (newRecords.length === 0) {
+    console.log("✨ No new unique records to import!");
+    return { imported: 0, message: "No new records found", latestDate: latestDateStr };
+  }
+  
+  const batchSize = 1000;
+  let importedCount = 0;
+  
+  for (let i = 0; i < newRecords.length; i += batchSize) {
+    const batch = newRecords.slice(i, i + batchSize);
+    await db.insert(monthlySales).values(batch);
+    importedCount += batch.length;
+    console.log(`   Inserted ${Math.min(i + batchSize, newRecords.length)}/${newRecords.length} records`);
+  }
+  
+  console.log(`✅ Successfully imported ${importedCount} new records`);
+  
+  const newLatestDate = await getLatestObligationDate();
+  const newLatestDateStr = newLatestDate?.toISOString().split('T')[0] || latestDateStr;
+  
+  return { imported: importedCount, message: `Imported ${importedCount} new records`, latestDate: newLatestDateStr };
+}
 
 async function importDataForYear(year: number) {
   const startDate = `${year}-01-01T00:00:00.000`;
@@ -12,7 +124,6 @@ async function importDataForYear(year: number) {
   
   console.log(`✓ Fetched ${locations.length} locations with monthly records`);
   
-  // Flatten all monthly records from all locations
   const allMonthlyRecords = locations.flatMap(location => 
     location.monthlyRecords.map(record => ({
       permitNumber: record.permitNumber,
@@ -35,7 +146,6 @@ async function importDataForYear(year: number) {
   
   console.log(`📊 Total monthly records to import: ${allMonthlyRecords.length}`);
   
-  // Check if data for this year already exists
   const startOfYear = new Date(`${year}-01-01`);
   const endOfYear = new Date(`${year}-12-31`);
   
@@ -55,7 +165,6 @@ async function importDataForYear(year: number) {
     return;
   }
   
-  // Insert in batches of 1000
   const batchSize = 1000;
   for (let i = 0; i < allMonthlyRecords.length; i += batchSize) {
     const batch = allMonthlyRecords.slice(i, i + batchSize);
@@ -67,25 +176,30 @@ async function importDataForYear(year: number) {
 }
 
 async function main() {
-  // Get year(s) from command line arguments
-  // Usage: tsx importData.ts 2023           (single year)
-  //        tsx importData.ts 2015 2024      (year range)
-  //        tsx importData.ts                (default: 2024)
   const yearArg1 = process.argv[2];
   const yearArg2 = process.argv[3];
   
+  if (yearArg1 === "update" || yearArg1 === "incremental") {
+    try {
+      const result = await importIncrementalData();
+      console.log("\n✨ Incremental update complete!");
+      process.exit(0);
+    } catch (error) {
+      console.error("❌ Incremental update failed:", error);
+      process.exit(1);
+    }
+    return;
+  }
+  
   let years: number[];
   if (yearArg1 && yearArg2) {
-    // Range of years: importData.ts 2015 2024
     const start = parseInt(yearArg1);
     const end = parseInt(yearArg2);
     years = Array.from({ length: end - start + 1 }, (_, i) => start + i);
   } else if (yearArg1) {
-    // Single year: importData.ts 2023
     years = [parseInt(yearArg1)];
   } else {
-    // Default: current year
-    years = [2024];
+    years = [new Date().getFullYear()];
   }
   
   console.log("🚀 Starting data import from Texas Open Data Portal...\n");
