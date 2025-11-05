@@ -49,38 +49,41 @@ app.use((req, res, next) => {
   next();
 });
 
-// Schedule daily data refresh at 3 AM Central Time (respects DST)
+// Schedule hourly data refresh for real-time accuracy
 function scheduleDataRefresh() {
   const performRefresh = async () => {
     try {
-      log("Starting scheduled data refresh...");
+      const startTime = new Date().toISOString();
+      log(`[${startTime}] Starting automatic data refresh...`);
       const result = await importIncrementalData();
-      log(`Scheduled refresh complete: ${result.message}, imported ${result.imported || 0} records`);
+      const endTime = new Date().toISOString();
+      log(`[${endTime}] Refresh complete: ${result.message}, imported ${result.imported || 0} records, latest date: ${result.latestDate || 'unknown'}`);
     } catch (error: any) {
-      log(`Scheduled refresh failed: ${error.message}`);
+      const errorTime = new Date().toISOString();
+      log(`[${errorTime}] Refresh failed: ${error.message}`);
     }
   };
   
-  // Run at 3 AM Central Time every day (respects DST automatically)
+  // Run every hour for real-time data accuracy
   // Cron format: minute hour day month dayOfWeek
   // timezone: 'America/Chicago' handles both CST and CDT
-  cron.schedule('0 3 * * *', performRefresh, {
+  cron.schedule('0 * * * *', performRefresh, {
     timezone: 'America/Chicago'
   });
   
-  log("Data refresh scheduler initialized - will run daily at 3 AM Central Time (CST/CDT)");
-  
-  // Optionally run immediately on startup if we're near the scheduled time
-  const now = new Date();
-  const centralHour = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' })).getHours();
-  
-  if (centralHour === 3) {
-    log("Starting initial data refresh (launched at 3 AM)...");
-    performRefresh();
-  }
+  log("Data refresh scheduler initialized - will check for new data every hour");
 }
 
 (async () => {
+  // Run data refresh on startup to catch any missed updates
+  try {
+    log("Running startup data refresh...");
+    const result = await importIncrementalData();
+    log(`Startup refresh complete: ${result.message}, imported ${result.imported || 0} records, latest date: ${result.latestDate || 'unknown'}`);
+  } catch (error: any) {
+    log(`Startup refresh failed (non-fatal): ${error.message}`);
+  }
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
