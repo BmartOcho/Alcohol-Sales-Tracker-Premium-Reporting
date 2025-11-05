@@ -109,6 +109,12 @@ export async function importIncrementalData(): Promise<{ imported: number; messa
   
   console.log(`✅ Successfully imported ${importedCount} new records`);
   
+  // Clear the cache so fresh data is immediately available
+  console.log("🔄 Clearing location cache to refresh data...");
+  const { storage } = await import("../storage");
+  storage.clearCache();
+  console.log("✓ Cache cleared - fresh data now available");
+  
   const newLatestDate = await getLatestObligationDate();
   const newLatestDateStr = newLatestDate?.toISOString().split('T')[0] || latestDateStr;
   
