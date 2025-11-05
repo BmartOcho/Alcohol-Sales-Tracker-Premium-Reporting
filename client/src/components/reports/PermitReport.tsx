@@ -14,6 +14,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { useDebounce } from "@/hooks/useDebounce";
 import { LocationMap } from "@/components/LocationMap";
+import { SearchLoadingAnimation } from "@/components/SearchLoadingAnimation";
 
 const COLORS = {
   liquor: "#3b82f6", // blue
@@ -319,7 +320,11 @@ export function PermitReport({ initialPermit, initialDateRange }: PermitReportPr
         )}
       </div>
 
-      {isSearching && <Skeleton className="h-20 w-full" />}
+      {isSearching && (
+        <div className="border rounded-lg bg-muted/10">
+          <SearchLoadingAnimation message="Searching locations..." size="md" />
+        </div>
+      )}
 
       {showSearchResults && (
         <div className="border rounded-lg p-4 bg-muted/20">
@@ -349,9 +354,8 @@ export function PermitReport({ initialPermit, initialDateRange }: PermitReportPr
       )}
 
       {isLoadingDetails && (
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-64 w-full" />
+        <div className="border rounded-lg bg-muted/10 py-8">
+          <SearchLoadingAnimation message="Loading location details..." size="lg" />
         </div>
       )}
 

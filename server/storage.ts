@@ -446,6 +446,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`Searching database for location name: ${locationName}`);
     
     // Search for locations with partial name match (case-insensitive)
+    // OPTIMIZED: Limit to top 50 results by total sales for faster search
     // Group only by permitNumber to avoid duplicates when location details vary
     const aggregatedLocations = await db
       .select({
@@ -467,7 +468,7 @@ export class DatabaseStorage implements IStorage {
       .where(sql`LOWER(${monthlySales.locationName}) LIKE LOWER(${`%${locationName}%`})`)
       .groupBy(monthlySales.permitNumber)
       .orderBy(desc(sql<string>`SUM(${monthlySales.totalReceipts})::numeric`))
-      .limit(20);
+      .limit(50);
 
     if (aggregatedLocations.length === 0) {
       console.log(`No locations found matching: ${locationName}`);
