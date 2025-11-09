@@ -55,21 +55,33 @@ export function PermitComparison() {
     }))
     .filter(item => item.data);
 
-  // Get all unique dates from all permits
-  const allDates = new Set<string>();
+  // Get all unique dates from all permits with actual Date objects for proper sorting
+  const allDatesMap = new Map<string, Date>();
   validData.forEach(item => {
     item.data?.monthlyRecords?.forEach(record => {
-      const date = new Date(record.obligationEndDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      allDates.add(date);
+      const dateObj = new Date(record.obligationEndDate);
+      const dateKey = dateObj.toISOString();
+      if (!allDatesMap.has(dateKey)) {
+        allDatesMap.set(dateKey, dateObj);
+      }
     });
   });
 
-  // Create chart data with all dates and permits
-  const chartData = Array.from(allDates).sort().map(date => {
-    const dataPoint: any = { date };
-    validData.forEach((item, index) => {
+  // Sort dates chronologically (oldest to newest)
+  const sortedDates = Array.from(allDatesMap.entries())
+    .sort(([, a], [, b]) => a.getTime() - b.getTime())
+    .map(([key, dateObj]) => ({
+      key,
+      dateObj,
+      display: dateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    }));
+
+  // Create chart data with chronologically sorted dates
+  const chartData = sortedDates.map(({ key, display }) => {
+    const dataPoint: any = { date: display };
+    validData.forEach((item) => {
       const record = item.data?.monthlyRecords?.find(r => 
-        new Date(r.obligationEndDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) === date
+        new Date(r.obligationEndDate).toISOString() === key
       );
       dataPoint[item.permit] = record?.totalReceipts || 0;
     });

@@ -109,6 +109,78 @@ export async function importIncrementalData(): Promise<{ imported: number; messa
   
   console.log(`✅ Successfully imported ${importedCount} new records`);
   
+  // Update establishments table with new/updated permit aggregations
+  console.log("📊 Updating establishments table with new data...");
+  const { establishments } = await import('@shared/schema');
+  
+  // Get unique permits from new records
+  const affectedPermits = Array.from(new Set(newRecords.map(r => r.permitNumber)));
+  console.log(`   Updating ${affectedPermits.length} establishments...`);
+  
+  // Recompute aggregates for affected permits and upsert
+  for (const permitNumber of affectedPermits) {
+    const aggregated = await db
+      .select({
+        permitNumber: monthlySales.permitNumber,
+        locationName: sql<string>`MAX(${monthlySales.locationName})`,
+        locationAddress: sql<string>`MAX(${monthlySales.locationAddress})`,
+        locationCity: sql<string>`MAX(${monthlySales.locationCity})`,
+        locationCounty: sql<string>`MAX(${monthlySales.locationCounty})`,
+        locationZip: sql<string>`MAX(${monthlySales.locationZip})`,
+        taxpayerName: sql<string>`MAX(${monthlySales.taxpayerName})`,
+        lat: sql<string>`MAX(${monthlySales.lat})`,
+        lng: sql<string>`MAX(${monthlySales.lng})`,
+        totalSales: sql<string>`SUM(${monthlySales.totalReceipts})`,
+        liquorSales: sql<string>`SUM(${monthlySales.liquorReceipts})`,
+        wineSales: sql<string>`SUM(${monthlySales.wineReceipts})`,
+        beerSales: sql<string>`SUM(${monthlySales.beerReceipts})`,
+        latestMonth: sql<string>`MAX(${monthlySales.obligationEndDate})`,
+      })
+      .from(monthlySales)
+      .where(eq(monthlySales.permitNumber, permitNumber))
+      .groupBy(monthlySales.permitNumber);
+    
+    if (aggregated.length > 0) {
+      const data = aggregated[0];
+      await db.insert(establishments).values({
+        permitNumber: data.permitNumber,
+        locationName: data.locationName,
+        locationAddress: data.locationAddress,
+        locationCity: data.locationCity,
+        locationCounty: data.locationCounty,
+        locationZip: data.locationZip,
+        taxpayerName: data.taxpayerName,
+        lat: data.lat,
+        lng: data.lng,
+        totalSales: data.totalSales,
+        liquorSales: data.liquorSales,
+        wineSales: data.wineSales,
+        beerSales: data.beerSales,
+        latestMonth: new Date(data.latestMonth),
+        updatedAt: new Date(),
+      }).onConflictDoUpdate({
+        target: establishments.permitNumber,
+        set: {
+          locationName: data.locationName,
+          locationAddress: data.locationAddress,
+          locationCity: data.locationCity,
+          locationCounty: data.locationCounty,
+          locationZip: data.locationZip,
+          taxpayerName: data.taxpayerName,
+          lat: data.lat,
+          lng: data.lng,
+          totalSales: data.totalSales,
+          liquorSales: data.liquorSales,
+          wineSales: data.wineSales,
+          beerSales: data.beerSales,
+          latestMonth: new Date(data.latestMonth),
+          updatedAt: new Date(),
+        }
+      });
+    }
+  }
+  console.log(`✓ Updated ${affectedPermits.length} establishments`);
+  
   // Clear the cache so fresh data is immediately available
   console.log("🔄 Clearing location cache to refresh data...");
   const { storage } = await import("../storage");
