@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import "leaflet.markercluster/dist/MarkerCluster.css";
-import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import "leaflet.markercluster";
 import type { LocationSummary } from "@shared/schema";
 
 // Texas Comptroller county codes (used by TABC data)
@@ -235,34 +232,14 @@ export function InteractiveMap({
     }).addTo(mapRef.current);
   }, [geoJsonData, locations, allLocations, onCountyClick, selectedCounty]);
 
-  // Render location markers with clustering
+  // Render location markers (individual markers, no clustering)
   useEffect(() => {
     if (!mapRef.current || locations.length === 0) return;
 
-    // Create marker cluster group with optimized settings
-    const markerClusterGroup = (L as any).markerClusterGroup({
-      chunkedLoading: true,
-      chunkInterval: 200,
-      chunkDelay: 50,
-      maxClusterRadius: 80,
-      spiderfyOnMaxZoom: true,
-      showCoverageOnHover: false,
-      zoomToBoundsOnClick: true,
-      iconCreateFunction: (cluster: any) => {
-        const count = cluster.getChildCount();
-        let size = 'small';
-        if (count > 100) size = 'large';
-        else if (count > 10) size = 'medium';
-        
-        return L.divIcon({
-          html: `<div><span>${count}</span></div>`,
-          className: `marker-cluster marker-cluster-${size}`,
-          iconSize: L.point(40, 40),
-        });
-      },
-    });
+    // Create layer group for markers
+    const markerGroup = L.layerGroup();
 
-    // Create markers for each location
+    // Create individual markers for each location
     locations.forEach((location) => {
       // Determine marker color based on dominant alcohol category
       const { liquorSales, wineSales, beerSales } = location;
@@ -300,16 +277,16 @@ export function InteractiveMap({
         className: 'location-popup'
       });
 
-      markerClusterGroup.addLayer(marker);
+      markerGroup.addLayer(marker);
     });
 
-    // Add cluster group to map
-    mapRef.current.addLayer(markerClusterGroup);
+    // Add marker group to map
+    mapRef.current.addLayer(markerGroup);
 
-    // Cleanup: remove cluster group when component unmounts or locations change
+    // Cleanup: remove marker group when component unmounts or locations change
     return () => {
-      if (mapRef.current && mapRef.current.hasLayer(markerClusterGroup)) {
-        mapRef.current.removeLayer(markerClusterGroup);
+      if (mapRef.current && mapRef.current.hasLayer(markerGroup)) {
+        mapRef.current.removeLayer(markerGroup);
       }
     };
   }, [locations]);
