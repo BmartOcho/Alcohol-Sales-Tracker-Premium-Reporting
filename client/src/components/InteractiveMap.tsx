@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import "leaflet.markercluster";
 import type { LocationSummary } from "@shared/schema";
 
 // Texas Comptroller county codes (used by TABC data)
@@ -231,6 +234,85 @@ export function InteractiveMap({
       onEachFeature,
     }).addTo(mapRef.current);
   }, [geoJsonData, locations, allLocations, onCountyClick, selectedCounty]);
+
+  // Render location markers with clustering
+  useEffect(() => {
+    if (!mapRef.current || locations.length === 0) return;
+
+    // Create marker cluster group with optimized settings
+    const markerClusterGroup = (L as any).markerClusterGroup({
+      chunkedLoading: true,
+      chunkInterval: 200,
+      chunkDelay: 50,
+      maxClusterRadius: 80,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      iconCreateFunction: (cluster: any) => {
+        const count = cluster.getChildCount();
+        let size = 'small';
+        if (count > 100) size = 'large';
+        else if (count > 10) size = 'medium';
+        
+        return L.divIcon({
+          html: `<div><span>${count}</span></div>`,
+          className: `marker-cluster marker-cluster-${size}`,
+          iconSize: L.point(40, 40),
+        });
+      },
+    });
+
+    // Create markers for each location
+    locations.forEach((location) => {
+      // Determine marker color based on dominant alcohol category
+      const { liquorSales, wineSales, beerSales } = location;
+      const maxSales = Math.max(liquorSales, wineSales, beerSales);
+      let color = '#9333ea'; // purple for liquor
+      if (maxSales === wineSales) color = '#dc2626'; // red for wine
+      if (maxSales === beerSales) color = '#f59e0b'; // amber for beer
+
+      const marker = L.circleMarker([location.lat, location.lng], {
+        radius: 7,
+        fillColor: color,
+        color: '#fff',
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 0.8,
+      });
+
+      // Add popup with location details
+      marker.bindPopup(`
+        <div style="font-family: Inter, sans-serif; min-width: 200px;">
+          <h3 style="font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">${location.locationName}</h3>
+          <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">
+            ${location.locationAddress}<br/>
+            ${location.locationCity}, TX ${location.locationZip}
+          </div>
+          <div style="font-size: 12px;">
+            <strong>Total Sales:</strong> $${location.totalSales.toLocaleString()}<br/>
+            <span style="color: #3b82f6;">Liquor: $${location.liquorSales.toLocaleString()}</span><br/>
+            <span style="color: #dc2626;">Wine: $${location.wineSales.toLocaleString()}</span><br/>
+            <span style="color: #f59e0b;">Beer: $${location.beerSales.toLocaleString()}</span>
+          </div>
+        </div>
+      `, {
+        maxWidth: 300,
+        className: 'location-popup'
+      });
+
+      markerClusterGroup.addLayer(marker);
+    });
+
+    // Add cluster group to map
+    mapRef.current.addLayer(markerClusterGroup);
+
+    // Cleanup: remove cluster group when component unmounts or locations change
+    return () => {
+      if (mapRef.current && mapRef.current.hasLayer(markerClusterGroup)) {
+        mapRef.current.removeLayer(markerClusterGroup);
+      }
+    };
+  }, [locations]);
 
   // Auto-zoom to selected county
   useEffect(() => {
