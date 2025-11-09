@@ -19,6 +19,7 @@ import type { LocationSummary } from "@shared/schema";
 import { SEO } from "@/components/SEO";
 import { recordSearch, getRemainingSearches, shouldShowPaywall, getSearchCount } from "@/lib/freemiumTracking";
 import { useAuth } from "@/hooks/useAuth";
+import logoPath from "@assets/Untitled design (78)_1762724883125.png";
 
 // County code to name mapping for display
 const COUNTY_CODE_TO_NAME: Record<string, string> = {
@@ -279,7 +280,7 @@ export default function Home() {
   return (
     <div className="flex flex-col lg:flex-row h-screen w-full overflow-hidden">
       <SEO
-        title="Texas Alcohol Sales Map - Explore Sales Data by Location"
+        title="Alcohol Sales Tracker - Texas Sales Data by Location"
         description="Interactive map showing alcohol sales data for 22,000+ Texas establishments. Filter by year, search locations, and analyze sales trends across all 254 counties."
         type="website"
       />
@@ -290,11 +291,11 @@ export default function Home() {
           <div className="flex items-center justify-between gap-2">
             <div className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2">
-                <Star className="h-5 w-5 lg:h-6 lg:w-6 text-primary flex-shrink-0" />
-                <h1 className="text-lg lg:text-xl font-bold">Texas Alcohol Sales</h1>
+                <img src={logoPath} alt="Alcohol Sales Tracker Logo" className="h-6 w-6 lg:h-8 lg:w-8 flex-shrink-0" />
+                <h1 className="text-lg lg:text-xl font-bold">Alcohol Sales Tracker</h1>
               </div>
               {latestDataDate && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground ml-7 lg:ml-8">
+                <div className="flex items-center gap-1 text-xs text-muted-foreground ml-7 lg:ml-9">
                   <Calendar className="h-3 w-3" />
                   <span>Data updated: {new Date(latestDataDate).toLocaleDateString()}</span>
                 </div>
@@ -431,8 +432,11 @@ export default function Home() {
 
             <div className="space-y-2">
               <div className="relative">
-                {!hasPaidAccess && <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
-                {hasPaidAccess && <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
+                {!hasPaidAccess ? (
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
                 <Input
                   placeholder={hasPaidAccess ? "Search locations, cities, counties..." : "Subscribe to search"}
                   value={searchQuery}
