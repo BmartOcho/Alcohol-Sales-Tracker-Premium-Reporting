@@ -868,6 +868,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>${baseUrl}/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>${baseUrl}/reports</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
