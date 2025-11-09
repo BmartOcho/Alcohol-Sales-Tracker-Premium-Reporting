@@ -215,8 +215,8 @@ export default function Home() {
       console.log(`All data loaded: ${allLocations.length} locations`);
       return allLocations;
     },
-    // For users without paid access, only fetch if county is selected
-    enabled: hasPaidAccess || !!selectedCounty,
+    // Only fetch when county is selected OR search is active (for all users)
+    enabled: !!selectedCounty || !!debouncedSearch.trim(),
     retry: 2,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -239,19 +239,16 @@ export default function Home() {
 
   const totalPages = Math.ceil(filteredLocations.length / ITEMS_PER_PAGE);
 
-  // Map display locations - enforce clean limits
+  // Map display locations - only show markers when data is loaded
   const mapLocations = useMemo(() => {
-    if (selectedCounty) {
-      // When county selected, ALWAYS show top 10 (with or without search)
-      return filteredLocations.slice(0, 10);
-    } else if (debouncedSearch.trim()) {
-      // Statewide search: show all results (already server-filtered)
-      return filteredLocations;
-    } else {
-      // Default statewide view: top 100
-      return filteredLocations.slice(0, 100);
+    // No data loaded yet (no county selected, no search) - show empty map
+    if (!locations || locations.length === 0) {
+      return [];
     }
-  }, [filteredLocations, selectedCounty, debouncedSearch]);
+    
+    // Show all filtered locations (already limited by server for free users)
+    return filteredLocations;
+  }, [filteredLocations, locations]);
 
   const totalSales = useMemo(() => {
     if (!filteredLocations) return 0;
