@@ -55,6 +55,31 @@ export const monthlySales = pgTable("monthly_sales", {
   countyIdx: index("county_idx").on(table.locationCounty),
 }));
 
+// Denormalized establishments table - one row per permit for fast searches
+export const establishments = pgTable("establishments", {
+  permitNumber: text("permit_number").primaryKey(),
+  locationName: text("location_name").notNull(),
+  locationAddress: text("location_address").notNull(),
+  locationCity: text("location_city").notNull(),
+  locationCounty: text("location_county").notNull(),
+  locationZip: text("location_zip").notNull(),
+  taxpayerName: text("taxpayer_name").notNull(),
+  lat: numeric("lat").notNull(),
+  lng: numeric("lng").notNull(),
+  totalSales: numeric("total_sales").notNull(),
+  liquorSales: numeric("liquor_sales").notNull(),
+  wineSales: numeric("wine_sales").notNull(),
+  beerSales: numeric("beer_sales").notNull(),
+  latestMonth: timestamp("latest_month").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  nameIdx: index("establishments_name_trgm_idx").on(sql`lower(${table.locationName})`),
+  cityIdx: index("establishments_city_idx").on(sql`lower(${table.locationCity})`),
+  countyIdx: index("establishments_county_idx").on(table.locationCounty),
+  zipIdx: index("establishments_zip_idx").on(table.locationZip),
+  salesIdx: index("establishments_sales_idx").on(table.totalSales),
+}));
+
 // User schemas for Replit Auth
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;

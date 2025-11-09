@@ -445,29 +445,29 @@ export class DatabaseStorage implements IStorage {
   async getLocationsByName(locationName: string): Promise<LocationSummary[]> {
     console.log(`Searching database for location name: ${locationName}`);
     
-    // Search for locations with partial name match (case-insensitive)
-    // OPTIMIZED: Limit to top 50 results by total sales for faster search
-    // Group only by permitNumber to avoid duplicates when location details vary
+    // OPTIMIZED: Use denormalized establishments table for instant search
+    // This avoids expensive GROUP BY aggregations on 1.8M+ monthly records
+    const { establishments } = await import('@shared/schema');
+    
     const aggregatedLocations = await db
       .select({
-        permitNumber: monthlySales.permitNumber,
-        locationName: sql<string>`MAX(${monthlySales.locationName})`,
-        locationAddress: sql<string>`MAX(${monthlySales.locationAddress})`,
-        locationCity: sql<string>`MAX(${monthlySales.locationCity})`,
-        locationCounty: sql<string>`MAX(${monthlySales.locationCounty})`,
-        locationZip: sql<string>`MAX(${monthlySales.locationZip})`,
-        lat: sql<string>`MAX(${monthlySales.lat})`,
-        lng: sql<string>`MAX(${monthlySales.lng})`,
-        totalSales: sql<string>`SUM(${monthlySales.totalReceipts})::text`,
-        liquorSales: sql<string>`SUM(${monthlySales.liquorReceipts})::text`,
-        wineSales: sql<string>`SUM(${monthlySales.wineReceipts})::text`,
-        beerSales: sql<string>`SUM(${monthlySales.beerReceipts})::text`,
-        latestMonth: sql<string>`MAX(${monthlySales.obligationEndDate})::text`,
+        permitNumber: establishments.permitNumber,
+        locationName: establishments.locationName,
+        locationAddress: establishments.locationAddress,
+        locationCity: establishments.locationCity,
+        locationCounty: establishments.locationCounty,
+        locationZip: establishments.locationZip,
+        lat: sql<string>`${establishments.lat}::text`,
+        lng: sql<string>`${establishments.lng}::text`,
+        totalSales: sql<string>`${establishments.totalSales}::text`,
+        liquorSales: sql<string>`${establishments.liquorSales}::text`,
+        wineSales: sql<string>`${establishments.wineSales}::text`,
+        beerSales: sql<string>`${establishments.beerSales}::text`,
+        latestMonth: sql<string>`${establishments.latestMonth}::text`,
       })
-      .from(monthlySales)
-      .where(sql`LOWER(${monthlySales.locationName}) LIKE LOWER(${`%${locationName}%`})`)
-      .groupBy(monthlySales.permitNumber)
-      .orderBy(desc(sql<string>`SUM(${monthlySales.totalReceipts})::numeric`))
+      .from(establishments)
+      .where(sql`lower(${establishments.locationName}) LIKE lower(${`%${locationName}%`})`)
+      .orderBy(desc(establishments.totalSales))
       .limit(50);
 
     if (aggregatedLocations.length === 0) {
