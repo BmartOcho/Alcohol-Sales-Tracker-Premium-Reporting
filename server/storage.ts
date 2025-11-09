@@ -1,4 +1,4 @@
-import { type User, type UpsertUser, type LocationSummary, type MonthlySalesRecord } from "@shared/schema";
+import { type User, type UpsertUser, type LocationSummary, type MonthlySalesRecord, type InsertContactMessage, type ContactMessage } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -22,6 +22,8 @@ export interface IStorage {
   getCachedLocations(cacheKey?: string): LocationSummary[] | null;
   setCachedLocations(locations: LocationSummary[], cacheKey?: string): void;
   clearCache(): void;
+  // Contact message operations
+  createContactMessage(message: InsertContactMessage): Promise<ContactMessage>;
 }
 
 export class MemStorage implements IStorage {
@@ -152,10 +154,19 @@ export class MemStorage implements IStorage {
     this.locationCaches.clear();
     console.log('MemStorage: Cleared all location caches');
   }
+
+  async createContactMessage(message: InsertContactMessage): Promise<ContactMessage> {
+    const contactMessage: ContactMessage = {
+      id: randomUUID(),
+      ...message,
+      createdAt: new Date(),
+    };
+    return contactMessage;
+  }
 }
 
 import { db } from "./db";
-import { monthlySales, users } from "@shared/schema";
+import { monthlySales, users, contactMessages } from "@shared/schema";
 import { and, between, eq, desc, sql, inArray } from "drizzle-orm";
 
 export class DatabaseStorage implements IStorage {
@@ -544,6 +555,14 @@ export class DatabaseStorage implements IStorage {
   clearCache(): void {
     this.locationCache.clear();
     console.log('DatabaseStorage: Cleared all location caches');
+  }
+
+  async createContactMessage(message: InsertContactMessage): Promise<ContactMessage> {
+    const [contactMessage] = await db
+      .insert(contactMessages)
+      .values(message)
+      .returning();
+    return contactMessage;
   }
 }
 

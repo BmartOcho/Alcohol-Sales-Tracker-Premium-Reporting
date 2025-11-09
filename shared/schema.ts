@@ -165,3 +165,23 @@ export const countySalesSchema = z.object({
 });
 
 export type CountySales = z.infer<typeof countySalesSchema>;
+
+// Contact messages table for user inquiries
+export const contactMessages = pgTable("contact_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  email: varchar("email").notNull(),
+  subject: varchar("subject").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  createdIdx: index("contact_created_idx").on(table.createdAt),
+}));
+
+export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
+export type ContactMessage = typeof contactMessages.$inferSelect;
