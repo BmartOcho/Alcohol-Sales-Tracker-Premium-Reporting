@@ -244,25 +244,35 @@ export default function Home() {
 
   const totalPages = Math.ceil(filteredLocations.length / ITEMS_PER_PAGE);
 
-  // Map display locations - only show markers when data is loaded
+  // Map display locations - only show markers when filters are active
   const mapLocations = useMemo(() => {
-    // No data loaded yet (no county selected, no search) - show empty map
-    if (!locations || locations.length === 0) {
+    // If no filters are active, never show any markers
+    if (!selectedCounty && !debouncedSearch.trim()) {
       return [];
     }
     
     // Show all filtered locations (already limited by server for free users)
     return filteredLocations;
-  }, [filteredLocations, locations]);
+  }, [filteredLocations, selectedCounty, debouncedSearch]);
 
   const totalSales = useMemo(() => {
     if (!filteredLocations) return 0;
     return filteredLocations.reduce((sum, loc) => sum + loc.totalSales, 0);
   }, [filteredLocations]);
 
+  // All locations for county aggregation - only when filters are active
+  const allLocationsForMap = useMemo(() => {
+    // If no filters are active, don't pass any data to map (prevents cached data from showing)
+    if (!selectedCounty && !debouncedSearch.trim()) {
+      return [];
+    }
+    return locations || [];
+  }, [locations, selectedCounty, debouncedSearch]);
+
   const clearFilters = () => {
     setSelectedCounty(null);
     setSearchQuery("");
+    setDebouncedSearch(""); // Immediately clear debounced search to prevent stale markers
     setCurrentPage(1);
   };
 
@@ -720,7 +730,7 @@ export default function Home() {
           ) : (
             <InteractiveMap
               locations={mapLocations}
-              allLocations={locations}
+              allLocations={allLocationsForMap}
               onCountyClick={(countyName) => {
                 setSelectedCounty(countyName);
                 setCurrentPage(1);
