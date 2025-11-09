@@ -223,12 +223,17 @@ export default function Home() {
 
   // Sort locations (server handles all filtering: county, search, etc.)
   const filteredLocations = useMemo(() => {
+    // If no filters are active, return empty array (even if query has cached data)
+    if (!selectedCounty && !debouncedSearch.trim()) {
+      return [];
+    }
+    
     if (!locations) return [];
     
     // Server already filters by county AND search query, so just sort
     // Clone to avoid mutating cache
     return [...locations].sort((a, b) => b.totalSales - a.totalSales);
-  }, [locations]);
+  }, [locations, selectedCounty, debouncedSearch]);
 
   // Paginate filtered locations
   const paginatedLocations = useMemo(() => {
