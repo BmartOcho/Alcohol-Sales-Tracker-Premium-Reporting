@@ -894,6 +894,40 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     res.send(robots);
   });
 
+  // Contact form submission
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const { name, email, subject, message } = req.body;
+      
+      if (!name || !email || !subject || !message) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
+
+      const contactMessage = await storage.createContactMessage({
+        name,
+        email,
+        subject,
+        message,
+      });
+
+      console.log(`[Contact] New message from ${name} (${email}): ${subject}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Your message has been sent successfully. We'll get back to you soon!" 
+      });
+    } catch (error: any) {
+      console.error('Error saving contact message:', error);
+      return res.status(500).json({ message: "Failed to send message. Please try again later." });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
