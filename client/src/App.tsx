@@ -9,6 +9,7 @@ import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
 import Reports from "@/pages/Reports";
 import Subscribe from "@/pages/Subscribe";
+import About from "@/pages/About";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +19,9 @@ function Router() {
     <Switch>
       {/* Freemium: Home is accessible to everyone */}
       <Route path="/" component={Home} />
+      
+      {/* Public pages */}
+      <Route path="/about" component={About} />
       
       {/* Auth pages */}
       <Route path="/login" component={Landing} />

@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText, Lock, User, LogOut, CreditCard, Crown, Database } from "lucide-react";
+import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText, Lock, User, LogOut, CreditCard, Crown, Database, Info } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { LocationSummary } from "@shared/schema";
@@ -306,6 +306,15 @@ export default function Home() {
           
           {/* Buttons Row */}
           <div className="flex items-center justify-end gap-1 lg:gap-2">
+            <Link href="/about">
+              <Button variant="outline" size="sm" data-testid="button-about" className="hidden sm:flex">
+                <Info className="h-4 w-4 mr-2" />
+                About
+              </Button>
+              <Button variant="outline" size="icon" data-testid="button-about-mobile" className="sm:hidden h-8 w-8">
+                <Info className="h-4 w-4" />
+              </Button>
+            </Link>
             <Link href="/reports">
               <Button variant="outline" size="sm" data-testid="button-reports" className="hidden sm:flex">
                 <FileText className="h-4 w-4 mr-2" />
