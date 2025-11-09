@@ -2,6 +2,8 @@ import { db } from "../db";
 import { monthlySales } from "@shared/schema";
 import { fetchAllTexasAlcoholData } from "../services/texasDataService";
 import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
+import { pathToFileURL } from "url";
+import { resolve } from "path";
 
 export async function getLatestObligationDate(): Promise<Date | null> {
   const result = await db
@@ -296,7 +298,12 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
+// Only run main() if this script is executed directly (not imported as a module)
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+
+if (isMainModule) {
+  main().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+}
