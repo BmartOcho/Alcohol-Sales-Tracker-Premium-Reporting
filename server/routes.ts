@@ -933,6 +933,52 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Admin: Get all contact messages (requires authentication)
+  app.get("/api/admin/contact-messages", isAuthenticated, async (req, res) => {
+    try {
+      const messages = await storage.getAllContactMessages();
+      res.json(messages);
+    } catch (error: any) {
+      console.error('Error fetching contact messages:', error);
+      return res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  // Admin: Update contact message (requires authentication)
+  app.patch("/api/admin/contact-messages/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, responseNotes } = req.body;
+      
+      const updates: any = {};
+      if (status) updates.status = status;
+      if (responseNotes !== undefined) {
+        updates.responseNotes = responseNotes;
+        if (responseNotes && status === 'responded') {
+          updates.respondedAt = new Date();
+        }
+      }
+      
+      const updatedMessage = await storage.updateContactMessage(id, updates);
+      res.json(updatedMessage);
+    } catch (error: any) {
+      console.error('Error updating contact message:', error);
+      return res.status(500).json({ message: error.message || "Failed to update message" });
+    }
+  });
+
+  // Admin: Delete contact message (requires authentication)
+  app.delete("/api/admin/contact-messages/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteContactMessage(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error deleting contact message:', error);
+      return res.status(500).json({ message: "Failed to delete message" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
