@@ -10,6 +10,7 @@ import Home from "@/pages/Home";
 import Reports from "@/pages/Reports";
 import Subscribe from "@/pages/Subscribe";
 import About from "@/pages/About";
+import AdminContacts from "@/pages/AdminContacts";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -34,11 +35,13 @@ function Router() {
         <>
           <Route path="/reports" component={Reports} />
           <Route path="/subscribe" component={Subscribe} />
+          <Route path="/admin/contacts" component={AdminContacts} />
         </>
       ) : (
         <>
           <Route path="/reports" component={Landing} />
           <Route path="/subscribe" component={Landing} />
+          <Route path="/admin/contacts" component={Landing} />
         </>
       )}
       

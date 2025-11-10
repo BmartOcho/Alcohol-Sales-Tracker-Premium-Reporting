@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText, Lock, User, LogOut, CreditCard, Crown, Database, Info } from "lucide-react";
+import { Star, AlertCircle, Calendar, Search, MapPin, X, FileText, Lock, User, LogOut, CreditCard, Crown, Database, Info, MessageSquare } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { LocationSummary } from "@shared/schema";
@@ -391,6 +391,15 @@ export default function Home() {
                       <DropdownMenuSeparator />
                     </>
                   )}
+                  {/* Admin contact messages */}
+                  <DropdownMenuItem 
+                    onClick={() => setLocation('/admin/contacts')}
+                    data-testid="button-admin-contacts"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Contact Messages
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onClick={() => window.location.href = '/api/logout'}
                     data-testid="button-logout"
