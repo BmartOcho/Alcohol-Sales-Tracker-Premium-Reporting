@@ -21,6 +21,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  isAdmin: boolean("is_admin").default(false),
   // Subscription fields for future Stripe integration
   subscriptionStatus: varchar("subscription_status").default('free'), // 'free', 'active', 'canceled', 'past_due'
   subscriptionTier: varchar("subscription_tier").default('free'), // 'free', 'pro', 'enterprise'
