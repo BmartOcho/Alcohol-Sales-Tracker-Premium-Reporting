@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
 
 // Initialize Stripe (from blueprint:javascript_stripe)
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -933,8 +933,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  // Admin: Get all contact messages (requires authentication)
-  app.get("/api/admin/contact-messages", isAuthenticated, async (req, res) => {
+  // Admin: Get all contact messages (requires admin access)
+  app.get("/api/admin/contact-messages", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const messages = await storage.getAllContactMessages();
       res.json(messages);
@@ -944,8 +944,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  // Admin: Update contact message (requires authentication)
-  app.patch("/api/admin/contact-messages/:id", isAuthenticated, async (req, res) => {
+  // Admin: Update contact message (requires admin access)
+  app.patch("/api/admin/contact-messages/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const { status, responseNotes } = req.body;
@@ -967,8 +967,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  // Admin: Delete contact message (requires authentication)
-  app.delete("/api/admin/contact-messages/:id", isAuthenticated, async (req, res) => {
+  // Admin: Delete contact message (requires admin access)
+  app.delete("/api/admin/contact-messages/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteContactMessage(id);
