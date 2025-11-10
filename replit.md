@@ -6,6 +6,9 @@ An interactive web application for visualizing Texas alcohol sales data by categ
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Future Enhancements
+- **Email Notifications**: Consider adding transactional emails for user signups and subscription confirmations using Resend or SendGrid integration. User opted to skip this feature for now.
+
 ## System Architecture
 
 ### Frontend Architecture
