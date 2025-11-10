@@ -24,6 +24,9 @@ export interface IStorage {
   clearCache(): void;
   // Contact message operations
   createContactMessage(message: InsertContactMessage): Promise<ContactMessage>;
+  getAllContactMessages(): Promise<ContactMessage[]>;
+  updateContactMessage(id: string, updates: { status?: string; responseNotes?: string; respondedAt?: Date }): Promise<ContactMessage>;
+  deleteContactMessage(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -159,9 +162,24 @@ export class MemStorage implements IStorage {
     const contactMessage: ContactMessage = {
       id: randomUUID(),
       ...message,
+      status: 'new',
+      responseNotes: null,
+      respondedAt: null,
       createdAt: new Date(),
     };
     return contactMessage;
+  }
+
+  async getAllContactMessages(): Promise<ContactMessage[]> {
+    return [];
+  }
+
+  async updateContactMessage(id: string, updates: { status?: string; responseNotes?: string; respondedAt?: Date }): Promise<ContactMessage> {
+    throw new Error('MemStorage does not support contact message updates');
+  }
+
+  async deleteContactMessage(id: string): Promise<void> {
+    throw new Error('MemStorage does not support contact message deletion');
   }
 }
 
@@ -563,6 +581,36 @@ export class DatabaseStorage implements IStorage {
       .values(message)
       .returning();
     return contactMessage;
+  }
+
+  async getAllContactMessages(): Promise<ContactMessage[]> {
+    const messages = await db
+      .select()
+      .from(contactMessages)
+      .orderBy(desc(contactMessages.createdAt));
+    return messages;
+  }
+
+  async updateContactMessage(id: string, updates: { status?: string; responseNotes?: string; respondedAt?: Date }): Promise<ContactMessage> {
+    const updateData: any = {};
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.responseNotes !== undefined) updateData.responseNotes = updates.responseNotes;
+    if (updates.respondedAt !== undefined) updateData.respondedAt = updates.respondedAt;
+
+    const [message] = await db
+      .update(contactMessages)
+      .set(updateData)
+      .where(eq(contactMessages.id, id))
+      .returning();
+    
+    if (!message) throw new Error('Contact message not found');
+    return message;
+  }
+
+  async deleteContactMessage(id: string): Promise<void> {
+    await db
+      .delete(contactMessages)
+      .where(eq(contactMessages.id, id));
   }
 }
 
