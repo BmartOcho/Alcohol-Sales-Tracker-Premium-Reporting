@@ -173,9 +173,13 @@ export const contactMessages = pgTable("contact_messages", {
   email: varchar("email").notNull(),
   subject: varchar("subject").notNull(),
   message: text("message").notNull(),
+  status: varchar("status").notNull().default('new'),
+  responseNotes: text("response_notes"),
+  respondedAt: timestamp("responded_at"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   createdIdx: index("contact_created_idx").on(table.createdAt),
+  statusIdx: index("contact_status_idx").on(table.status),
 }));
 
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({
