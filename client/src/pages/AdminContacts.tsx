@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { type ContactMessage } from "@shared/schema";
@@ -12,8 +12,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Search, Mail, Trash2, MessageSquare, Calendar, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 
 export default function AdminContacts() {
+  const [, setLocation] = useLocation();
+  const { user, isLoading: authLoading } = useAuth();
+  
+  useEffect(() => {
+    if (!authLoading && (!user || !(user as any)?.isAdmin)) {
+      setLocation('/');
+    }
+  }, [user, authLoading, setLocation]);
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");

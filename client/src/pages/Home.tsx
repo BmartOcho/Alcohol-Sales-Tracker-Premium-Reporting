@@ -391,15 +391,19 @@ export default function Home() {
                       <DropdownMenuSeparator />
                     </>
                   )}
-                  {/* Admin contact messages */}
-                  <DropdownMenuItem 
-                    onClick={() => setLocation('/admin/contacts')}
-                    data-testid="button-admin-contacts"
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Contact Messages
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  {/* Admin contact messages - only show for admins */}
+                  {(user as any)?.isAdmin && (
+                    <>
+                      <DropdownMenuItem 
+                        onClick={() => setLocation('/admin/contacts')}
+                        data-testid="button-admin-contacts"
+                      >
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Contact Messages
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem 
                     onClick={() => window.location.href = '/api/logout'}
                     data-testid="button-logout"
