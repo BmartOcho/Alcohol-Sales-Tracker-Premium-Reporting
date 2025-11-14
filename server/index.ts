@@ -5,8 +5,6 @@ import { importIncrementalData } from "./scripts/importData";
 import cron from "node-cron";
 import analyticsRouter from "./routes/analytics";
 
-app.use("/api/analytics", analyticsRouter);
-
 
 const app = express();
 app.use(express.json());
@@ -49,6 +47,8 @@ app.use((req, res, next) => {
       log(logLine);
     }
   });
+
+  app.use("/api/analytics", analyticsRouter);
 
   next();
 });
