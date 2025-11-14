@@ -3,6 +3,10 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { importIncrementalData } from "./scripts/importData";
 import cron from "node-cron";
+import analyticsRouter from "./routes/analytics";
+
+app.use("/api/analytics", analyticsRouter);
+
 
 const app = express();
 app.use(express.json());
