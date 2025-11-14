@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
+
 import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
 import Reports from "@/pages/Reports";
@@ -13,24 +14,35 @@ import About from "@/pages/About";
 import AdminContacts from "@/pages/AdminContacts";
 import NotFound from "@/pages/not-found";
 
+// 👇 Add this import (your new dashboard page)
+import EstablishmentPage from "@/pages/EstablishmentPage";
+
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
   return (
     <Switch>
-      {/* Freemium: Home is accessible to everyone */}
+      {/* Freemium/public routes */}
       <Route path="/" component={Home} />
-      
-      {/* Public pages */}
       <Route path="/about" component={About} />
-      
+
+      {/* Establishment dashboard (public) */}
+      <Route path="/establishment/:permit" component={EstablishmentPage} />
+
       {/* Auth pages */}
       <Route path="/login" component={Landing} />
       <Route path="/signup" component={Landing} />
-      
-      {/* Protected routes - require authentication */}
+
+      {/* Protected routes */}
       {isLoading ? (
-        <Route path="/reports" component={() => <div className="flex items-center justify-center h-screen">Loading...</div>} />
+        <Route
+          path="/reports"
+          component={() => (
+            <div className="flex items-center justify-center h-screen">
+              Loading...
+            </div>
+          )}
+        />
       ) : isAuthenticated ? (
         <>
           <Route path="/reports" component={Reports} />
@@ -44,7 +56,8 @@ function Router() {
           <Route path="/admin/contacts" component={Landing} />
         </>
       )}
-      
+
+      {/* Catch-all */}
       <Route component={NotFound} />
     </Switch>
   );
